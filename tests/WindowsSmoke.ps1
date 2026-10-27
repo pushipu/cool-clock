@@ -65,7 +65,8 @@ function Assert-Machine([string]$File, [int]$Machine) {
 }
 function Check-Render([string]$Name, [string]$Mode = '--preview') {
     $report = Join-Path $evidence "$Name.json"
-    Wait-Native (Start-Native $saver @($Mode, '--smoke-report', $report, '--seconds', '15')) 45
+    # Allow the host's 30-second cold-start limit plus at least 15 seconds of playback.
+    Wait-Native (Start-Native $saver @($Mode, '--smoke-report', $report, '--seconds', '45')) 75
     $data = Get-Content -Raw $report | ConvertFrom-Json
     Assert-True ($data.exitCode -eq 0 -and $data.views -ge 1 -and $data.readyViews -eq $data.views -and $data.errorCount -eq 0) "Render proof failed: $Name"
     $proof.stages += $Name
