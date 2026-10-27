@@ -35,11 +35,12 @@ function Start-Uninstall([string]$File) {
     return $process
 }
 function Wait-Native([Diagnostics.Process]$Process, [int]$Seconds = 30) {
+    $command = $Process.StartInfo.FileName + ' ' + $Process.StartInfo.Arguments + ' ' + ($Process.StartInfo.ArgumentList -join ' ')
     if (-not $Process.WaitForExit($Seconds * 1000)) {
         $Process.Kill($true)
-        throw "Process $($Process.Id) exceeded $Seconds seconds"
+        throw "Process $($Process.Id) exceeded $Seconds seconds: $command"
     }
-    Assert-True ($Process.ExitCode -eq 0) "Process $($Process.Id) exited $($Process.ExitCode)"
+    Assert-True ($Process.ExitCode -eq 0) "Process $($Process.Id) exited $($Process.ExitCode): $command"
 }
 function Desktop-Policy {
     $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Control Panel\Desktop')
@@ -195,7 +196,16 @@ public static class SmokeWindow {
 } catch {
     $proof.passed = $false
     $proof.errors += $_.ToString()
-    Write-Warning $_
+    $proof.scriptStackTrace = $_.ScriptStackTrace
+    try {
+        $marker = Join-Path $installDir '.cool-clock-install'
+        $proof.installAtFailure = [ordered]@{
+            directory = $installDir
+            attributes = if (Test-Path $installDir) { (Get-Item -Force $installDir).Attributes.ToString() } else { $null }
+            markerBase64 = if (Test-Path $marker) { [Convert]::ToBase64String([IO.File]::ReadAllBytes($marker)) } else { $null }
+        }
+    } catch { $proof.errors += "Failure diagnostics: $_" }
+    Write-Warning ($proof.errors[0])
 } finally {
     foreach ($process in $ownedProcesses) {
         if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit(5000) | Out-Null }
@@ -208,7 +218,7 @@ public static class SmokeWindow {
             Wait-Native (Start-Uninstall $uninstallCopy) 120
             Remove-Item $uninstallCopy
         }
-        catch { $proof.errors += "Cleanup: $_" }
+        catch { $proof.errors += "Cleanup: $_"; $proof.cleanupStackTrace = $_.ScriptStackTrace }
     }
     $proof | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $evidence 'smoke-proof.json')
 }

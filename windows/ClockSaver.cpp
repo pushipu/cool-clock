@@ -214,10 +214,13 @@ template<class I, class... A, class F> static I* Handler(REFIID iid, F f) { retu
 template<class T> static void Release(T*& p) { if (p) { p->Release(); p = nullptr; } }
 class Options final : public ICoreWebView2EnvironmentOptions {
     ULONG refs = 1;
-    std::wstring arguments = L"--autoplay-policy=no-user-gesture-required", language, version;
+    std::wstring arguments = L"--autoplay-policy=no-user-gesture-required", language;
+    std::wstring version = L"92.0.902.49"; // API floor for ICoreWebView2_4, the newest interface used here.
     BOOL signOn = FALSE;
     static HRESULT Copy(const std::wstring& s, LPWSTR* p) {
         if (!p) return E_POINTER;
+        *p = nullptr;
+        if (s.empty()) return S_OK;
         *p = static_cast<LPWSTR>(CoTaskMemAlloc((s.size()+1)*sizeof(wchar_t)));
         if (!*p) return E_OUTOFMEMORY;
         memcpy(*p,s.c_str(),(s.size()+1)*sizeof(wchar_t)); return S_OK;
@@ -235,6 +238,14 @@ public:
     HRESULT STDMETHODCALLTYPE get_AllowSingleSignOnUsingOSPrimaryAccount(BOOL* p) override {if(!p)return E_POINTER;*p=signOn;return S_OK;}
     HRESULT STDMETHODCALLTYPE put_AllowSingleSignOnUsingOSPrimaryAccount(BOOL p) override {signOn=p;return S_OK;}
 };
+static int OptionsSelfTest() {
+    auto options=new Options();
+    LPWSTR version=nullptr,language=nullptr;
+    bool ok=SUCCEEDED(options->get_TargetCompatibleBrowserVersion(&version))&&version&&ProductionVersion(version);
+    ok=ok&&SUCCEEDED(options->get_Language(&language))&&!language;
+    CoTaskMemFree(version);CoTaskMemFree(language);options->Release();
+    return ok?0:9;
+}
 struct View { HWND hwnd=nullptr; ICoreWebView2Controller* controller=nullptr; ICoreWebView2* web=nullptr; bool primary=false,ready=false,paused=false; std::wstring error; };
 static Arguments options;
 static std::vector<std::unique_ptr<View>> views;
@@ -467,7 +478,7 @@ int WINAPI wWinMain(HINSTANCE h,HINSTANCE,PWSTR,int) {
     int argc=0;LPWSTR* argv=CommandLineToArgvW(GetCommandLineW(),&argc);std::vector<std::wstring> args;
     if(!argv)return 2;for(int i=1;i<argc;++i)args.emplace_back(argv[i]);LocalFree(argv);
     if(!Parse(args,options)){MessageBoxW(nullptr,L"Неверные параметры. Используйте /s, /c, /p HWND или --preview.",L"Cool Clock",MB_OK|MB_ICONERROR);return 2;}
-    if(options.mode==Mode::SelfTest)return SelfTest();
+    if(options.mode==Mode::SelfTest){int result=SelfTest();return result?result:OptionsSelfTest();}
     if(options.mode==Mode::CloseExisting)return CloseExisting(options.closeTarget);
     if(options.mode==Mode::Embedded&&!IsWindow(reinterpret_cast<HWND>(options.parent)))return 2;
     wchar_t path[32768];DWORD length=GetModuleFileNameW(nullptr,path,32768);if(!length||length>=32768)return 2;

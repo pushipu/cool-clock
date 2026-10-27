@@ -95,10 +95,12 @@ Var Present7
   RMDir "${ROOT}"
 !macroend
 
+; Initialization exit codes: 10 OS, 11 CPU, 12 mutex, 13 concurrent setup, 14 unsafe folder, 15 foreign folder, 16 uninstall path.
 !macro Ownership PREFIX
 Function ${PREFIX}DetectPlatform
   ${IfNot} ${AtLeastWin10}
     MessageBox MB_ICONSTOP "Для Cool Clock требуется Windows 10 или Windows 11 (x64 или ARM64)." /SD IDOK
+    SetErrorLevel 10
     Abort
   ${EndIf}
   ${If} ${IsNativeARM64}
@@ -107,6 +109,7 @@ Function ${PREFIX}DetectPlatform
     StrCpy $NativeArch "x64"
   ${Else}
     MessageBox MB_ICONSTOP "Cool Clock поддерживает только 64-разрядную Windows: Intel/AMD (x64) или ARM64." /SD IDOK
+    SetErrorLevel 11
     Abort
   ${EndIf}
 FunctionEnd
@@ -117,10 +120,12 @@ Function ${PREFIX}LockInstaller
   StrCpy $Mutex $0
   ${If} $Mutex == 0
     MessageBox MB_ICONSTOP "Не удалось запустить установщик Cool Clock. Повторите попытку." /SD IDOK
+    SetErrorLevel 12
     Abort
   ${EndIf}
   ${If} $1 == 183
     MessageBox MB_ICONSTOP "Установщик Cool Clock уже запущен." /SD IDOK
+    SetErrorLevel 13
     Abort
   ${EndIf}
 FunctionEnd
@@ -134,6 +139,7 @@ Function ${PREFIX}CheckOwnership
   IntOp $1 $0 & 0x410
   ${If} $1 != 0x10
     MessageBox MB_ICONSTOP "Папка $INSTDIR не является обычной папкой Cool Clock. Установка остановлена." /SD IDOK
+    SetErrorLevel 14
     Abort
   ${EndIf}
   ClearErrors
@@ -146,6 +152,7 @@ Function ${PREFIX}CheckOwnership
   ${EndIf}
 foreign:
   MessageBox MB_ICONSTOP "Папка $INSTDIR уже существует и не принадлежит этому установщику. Сохраните её содержимое и переименуйте папку перед установкой." /SD IDOK
+  SetErrorLevel 15
   Abort
 FunctionEnd
 
@@ -344,9 +351,11 @@ Function un.onInit
   Call un.LockInstaller
   Call un.DetectPlatform
   ; Never trust a manually overridden uninstaller directory.
-  StrCmp $INSTDIR "$LOCALAPPDATA\Cool Clock" +3
+  StrCmp $INSTDIR "$LOCALAPPDATA\Cool Clock" uninstall_path_valid
+    SetErrorLevel 16
     MessageBox MB_ICONSTOP "Удаление возможно только из папки установленного Cool Clock." /SD IDOK
     Abort
+uninstall_path_valid:
   Call un.CheckOwnership
 FunctionEnd
 
