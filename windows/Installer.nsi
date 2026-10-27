@@ -14,7 +14,7 @@ SetCompressor /SOLID lzma
 !define MUI_ICON "${PAYLOAD_DIR}\ClockIcon.ico"
 !define MUI_UNICON "${PAYLOAD_DIR}\ClockIcon.ico"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TEXT "Установщик добавит Cool Clock для текущего пользователя.$\r$\n$\r$\nРабота и предпросмотр на настоящем Windows-компьютере ещё не проверены.$\r$\n$\r$\nДля продолжения нажмите Далее."
+!define MUI_WELCOMEPAGE_TEXT "Установщик добавит Cool Clock для текущего пользователя.$\r$\n$\r$\nЭто предварительная Windows-версия. Автозапуск по таймеру и работа с блокировкой ещё требуют проверки.$\r$\n$\r$\nДля продолжения нажмите Далее."
 !insertmacro MUI_PAGE_WELCOME
 Page custom SoundPage SoundLeave
 !insertmacro MUI_PAGE_INSTFILES
@@ -137,7 +137,7 @@ Function ${PREFIX}CheckOwnership
     Return
   ${EndIf}
   IntOp $1 $0 & 0x410
-  ${If} $1 != 0x10
+  ${If} $1 != 16
     MessageBox MB_ICONSTOP "Папка $INSTDIR не является обычной папкой Cool Clock. Установка остановлена." /SD IDOK
     SetErrorLevel 14
     Abort
