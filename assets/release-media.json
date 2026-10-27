@@ -1,0 +1,25 @@
+{
+  "version": "0.7.1",
+  "url": "https://github.com/pushipu/cool-clock/releases/download/v0.7.1/Cool-Clock-0.7.1-saver.zip",
+  "sha256": "8321211ac8049496dbeecfae50dcea913561947738b4d132df01174b593777d7",
+  "files": [
+    {
+      "member": "Cool Clock.saver/Contents/Resources/CloudSwift.mp4",
+      "path": "assets/cloud-swift.mp4",
+      "sha256": "eee702aa24e3628ca361303bbbb63b215a3c3359390006232bbb0f1c31b74f77",
+      "size": 49221330
+    },
+    {
+      "member": "Cool Clock.saver/Contents/Resources/CloudCirrus.mp4",
+      "path": "assets/cloud-cirrus.mp4",
+      "sha256": "599f1b77b5ac4f33a641de59808208e447b7d08937130b19aa0b0583131ae600",
+      "size": 73580541
+    },
+    {
+      "member": "Cool Clock.saver/Contents/Resources/ClockMinute.wav",
+      "path": "assets/audio/clock-minute.wav",
+      "sha256": "3f473b3bf57bfb9915aecde9377a31a3a1524e0cfdb2dd985c6b2e284f5e9b98",
+      "size": 15876102
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+.DS_Store
+._*
+__pycache__/
+*.pyc
+.env*
+.omx/
+.agents/
+.codex/
+/build/
+/dist/
+/output/
+/docs/superpowers/
+/assets/AppIcon.iconset/
+/assets/candidates/
+/assets/*.mp4
+/assets/restored-clock-face*.png
+/assets/audio/
+/video_*.mp4
+
+# The public project is the native macOS saver. The old browser comparison
+# requires the author's recording and a separate baked video kept locally.
+/clock-app.js
+/clock.css
+/index.html
+/tests/browser.html
+/scripts/compose_cloud_video.py
+/scripts/recover_clock_video.py
+/scripts/check_cloud_cadence.py
+/scripts/check_runtime_clouds.py
+/scripts/serve.py
