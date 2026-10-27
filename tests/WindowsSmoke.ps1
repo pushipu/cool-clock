@@ -25,8 +25,11 @@ function Start-Native([string]$File, [string[]]$Arguments = @()) {
     return $process
 }
 function Start-Uninstall([string]$File) {
+    # The ephemeral runner cleans this copy; Windows may retain its image lock after exit.
+    $copy = Join-Path ([IO.Path]::GetTempPath()) ("CoolClock-uninstall-" + [Guid]::NewGuid().ToString('N') + '.exe')
+    Copy-Item $File $copy
     $info = [Diagnostics.ProcessStartInfo]::new()
-    $info.FileName = $File
+    $info.FileName = $copy
     $info.UseShellExecute = $false
     # NSIS requires _?= to be last and unquoted, including spaces in its path.
     $info.Arguments = '/S _?=' + $installDir
@@ -179,9 +182,7 @@ public static class SmokeWindow {
     [IO.File]::WriteAllText($sentinel, $sentinelContent)
     $knownFiles = @(Get-ChildItem $installDir -File -Recurse | Where-Object FullName -ne $sentinel | ForEach-Object FullName)
     # Run a copy with _?= so the real uninstall exit is observed and its installed EXE can be deleted.
-    $uninstallCopy = Join-Path $evidence 'Uninstall-smoke.exe'
-    Copy-Item $uninstaller $uninstallCopy
-    Wait-Native (Start-Uninstall $uninstallCopy) 120
+    Wait-Native (Start-Uninstall $uninstaller) 120
     foreach ($file in $knownFiles) {
         Assert-True (-not (Test-Path $file)) "Uninstall left package file: $file"
     }
@@ -190,7 +191,6 @@ public static class SmokeWindow {
     $proof.desktopPolicyAfter = (Desktop-Policy) | ConvertFrom-Json
     $proof.stages += 'uninstall-preserves-user-files-and-desktop-policy'
     Remove-Item $sentinel
-    Remove-Item $uninstallCopy
     # Only remove the empty test directory, never recursively remove user files.
     [IO.Directory]::Delete($installDir)
     $ownsInstall = $false
@@ -215,10 +215,7 @@ public static class SmokeWindow {
     if ($parentWindow -ne [IntPtr]::Zero) { [SmokeWindow]::Stop() }
     if ($ownsInstall -and (Test-Path $uninstaller)) {
         try {
-            $uninstallCopy = Join-Path $evidence 'Uninstall-smoke.exe'
-            Copy-Item $uninstaller $uninstallCopy -Force
-            Wait-Native (Start-Uninstall $uninstallCopy) 120
-            Remove-Item $uninstallCopy
+            Wait-Native (Start-Uninstall $uninstaller) 120
         }
         catch { $proof.errors += "Cleanup: $_"; $proof.cleanupStackTrace = $_.ScriptStackTrace }
     }

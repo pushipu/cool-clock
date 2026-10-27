@@ -22,6 +22,10 @@ or inactivity timeout. Its final screen can open the Windows screen saver settin
 and select the installed `.scr`. Removal deletes installed files, not the shared
 Microsoft Runtime.
 
+The embedded control-panel preview uses a separate WebView2 data folder so it
+can run alongside the full-screen saver or a standalone preview without a
+shared-environment conflict.
+
 ## Build on macOS or Windows
 
 The automatic tool fetcher supports Apple Silicon macOS and native x64/ARM64
@@ -50,10 +54,14 @@ Its JSON reports explicitly distinguish these checks from actual idle/lock tests
 
 ## Verification required before a stable Windows release
 
-The sources are cross-compiled on macOS. A successful build does not establish
-working Windows playback. Verify on Windows x64 and ARM64: install/update/remove,
-system preview, full screen, sound and minute-boundary timing, several monitors,
-exit on input, and CPU/GPU use. Windows runtime checks are not yet confirmed.
+Native Windows runners have exercised installation, moving-video playback in
+windowed/full-screen/embedded modes, updates with active previews, and removal
+with user-file preservation on x64 and ARM64. The workflow publishes JSON proof
+for each stage and checks that screen-lock and timeout settings remain unchanged.
+
+Before a stable release, verify on physical Windows PCs: automatic idle startup,
+secure resume, audible minute-boundary timing, several monitors, exit on input,
+and CPU/GPU use. CI playback does not establish physical-device performance.
 
 Microsoft still tracks a WebView2 issue where manual testing works but automatic
 screen saver startup fails: [WebView2Feedback #945](https://github.com/MicrosoftEdge/WebView2Feedback/issues/945).
