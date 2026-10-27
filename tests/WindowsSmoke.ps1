@@ -60,9 +60,9 @@ function Assert-Machine([string]$File, [int]$Machine) {
     Assert-True ([BitConverter]::ToUInt32($bytes, $offset) -eq 0x4550) "Invalid PE signature: $File"
     Assert-True ([BitConverter]::ToUInt16($bytes, $offset + 4) -eq $Machine) "Wrong installed architecture: $File"
 }
-function Check-Render([string]$Name) {
+function Check-Render([string]$Name, [string]$Mode = '--preview') {
     $report = Join-Path $evidence "$Name.json"
-    Wait-Native (Start-Native $saver @('--preview', '--smoke-report', $report, '--seconds', '15')) 45
+    Wait-Native (Start-Native $saver @($Mode, '--smoke-report', $report, '--seconds', '15')) 45
     $data = Get-Content -Raw $report | ConvertFrom-Json
     Assert-True ($data.exitCode -eq 0 -and $data.views -ge 1 -and $data.readyViews -eq $data.views -and $data.errorCount -eq 0) "Render proof failed: $Name"
     $proof.stages += $Name
@@ -98,6 +98,7 @@ try {
     Assert-True ((Desktop-Policy) -eq $beforePolicy) 'Silent install changed desktop policy'
     $proof.stages += 'silent-install-native-architecture'
     Check-Render 'installed-render'
+    Check-Render 'fullscreen-render' '/s'
 
     # A real child HWND tests /p shutdown without sending input to the desktop.
     Add-Type @'
