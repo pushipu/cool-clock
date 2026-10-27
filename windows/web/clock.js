@@ -117,7 +117,8 @@ function render(now){
       });
       if(diagnostics.textureUploads.every(n=>n>0)){
         renderer.draw(scene.frameAt(sceneTime()));diagnostics.backgroundFrames++;
-        if(!diagnostics.ready){diagnostics.ready=true;post('ready');}
+        // A decoded first frame alone cannot prove that all three videos are playing.
+        if(!diagnostics.ready&&diagnostics.backgroundFrames>=30&&diagnostics.dialFrames>=5&&diagnostics.videoFrames.every(n=>n>=10)){diagnostics.ready=true;post('ready');}
       }
       lastBackground=now;
     }
