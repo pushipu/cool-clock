@@ -36,6 +36,10 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let menu = NSMenu()
         let applicationItem = NSMenuItem()
         let applicationMenu = NSMenu(title: "Cool Clock")
+        let settings = NSMenuItem(title: "Настройки…", action: #selector(showSettings), keyEquivalent: ",")
+        settings.target = self
+        applicationMenu.addItem(settings)
+        applicationMenu.addItem(.separator())
         let quit = NSMenuItem(title: "Завершить Cool Clock", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
         applicationMenu.addItem(quit)
@@ -87,6 +91,17 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func windowDidDeminiaturize(_ notification: Notification) { updatePlayback() }
     func windowDidChangeOcclusionState(_ notification: Notification) { updatePlayback() }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        let reload = NSSelectorFromString("reloadAudioPreferences")
+        if saver?.responds(to: reload) == true { saver?.perform(reload) }
+    }
+
+    @objc private func showSettings() {
+        guard let window, window.attachedSheet == nil, let saver,
+              saver.hasConfigureSheet, let sheet = saver.configureSheet else { return }
+        window.beginSheet(sheet)
+    }
+
     func windowWillClose(_ notification: Notification) {
         timer?.invalidate()
         saver?.stopAnimation()
@@ -101,6 +116,15 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private static func selfTest() throws {
+        let preferences = ScreenSaverDefaults(forModuleWithName: ClockPreferences.moduleName)!
+        let previousSound = preferences.object(forKey: ClockPreferences.soundKey)
+        let previousInstallation = preferences.object(forKey: "InstalledChoiceID")
+        defer {
+            if let previousSound { preferences.set(previousSound, forKey: ClockPreferences.soundKey) }
+            else { preferences.removeObject(forKey: ClockPreferences.soundKey) }
+            preferences.set(previousInstallation, forKey: "InstalledChoiceID")
+            preferences.synchronize()
+        }
         func check(_ value: Bool, _ message: String) throws {
             if !value { throw NSError(domain: "CoolClockTests", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
         }
@@ -157,6 +181,7 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             throw NSError(domain: "CoolClockTests", code: 3, userInfo: [NSLocalizedDescriptionKey: "Compiled .saver failed to load"])
         }
         try check(saver.value(forKey: "initializationError") == nil, "compiled .saver initialized its resources")
+        try check(saver.hasConfigureSheet && saver.configureSheet != nil, "compiled saver exposes native sound settings")
         let audio = MinuteAudioPlayer(bundle: bundle, muted: true)
         let secondAudio = MinuteAudioPlayer(bundle: bundle, muted: true)
         defer { audio.stop(); secondAudio.stop() }
@@ -229,6 +254,7 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         try check(button.isTransparent && button.isAccessibilityElement(), "dial exposes a transparent accessible button")
         let muteBefore = saver.value(forKey: "isAudioMuted") as? Bool
+        try check(button.accessibilityLabel() == (muteBefore == true ? "Включить звук" : "Выключить звук"), "audio button exposes its initial action")
         let audioSyncBefore = saver.value(forKey: "audioSynchronizationCount") as? Int
         button.performClick(nil)
         let muteAfter = saver.value(forKey: "isAudioMuted") as? Bool
@@ -240,6 +266,28 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         button.performClick(nil)
         try check((saver.value(forKey: "isAudioMuted") as? Bool) == muteBefore && (saver.value(forKey: "audioSynchronizationCount") as? Int) == audioSyncBefore, "second click restores sound without resynchronizing")
         try check(button.accessibilityLabel() == (muteBefore == true ? "Включить звук" : "Выключить звук"), "audio button exposes its current action")
+        let savedSound = ClockPreferences.soundEnabled()
+        let sheet = saver.configureSheet!
+        let controls = sheet.contentView!.subviews.compactMap { $0 as? NSButton }
+        guard let checkbox = controls.first(where: { $0.accessibilityIdentifier() == "soundEnabled" }),
+              let cancel = controls.first(where: { $0.title == "Отмена" }),
+              let save = controls.first(where: { $0.title == "Сохранить" }) else {
+            throw NSError(domain: "CoolClockTests", code: 6, userInfo: [NSLocalizedDescriptionKey: "Native settings controls missing"])
+        }
+        window.beginSheet(sheet)
+        checkbox.state = savedSound ? .off : .on
+        cancel.performClick(nil)
+        try check(ClockPreferences.soundEnabled() == savedSound && window.attachedSheet == nil, "Cancel closes settings without persisting edits")
+        window.beginSheet(saver.configureSheet!)
+        try check((checkbox.state == .on) == savedSound, "Reopening settings reloads saved sound")
+        checkbox.state = savedSound ? .off : .on
+        save.performClick(nil)
+        try check(ClockPreferences.soundEnabled() != savedSound && (saver.value(forKey: "isAudioMuted") as? Bool) == savedSound, "Save persists and applies sound")
+        try check(window.attachedSheet == nil && (saver.value(forKey: "audioSynchronizationCount") as? Int) == audioSyncBefore, "Save closes settings without restarting audio")
+        window.beginSheet(saver.configureSheet!)
+        checkbox.state = savedSound ? .on : .off
+        save.performClick(nil)
+        print("Sound settings: initial accessibility, Save, Cancel, reopen and continuous audio passed")
         let synchronizations = saver.value(forKey: "synchronizationCount") as? Int
         let continuousUntil = Date().addingTimeInterval(4.2)
         while Date() < continuousUntil {

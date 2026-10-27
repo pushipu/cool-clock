@@ -9,6 +9,9 @@ final class CoolClockSaverView: ScreenSaverView {
     private var audioError: Error?
     private var faceView: ClockFaceView?
     private var audioButton: NSButton?
+    private var settingsWindow: NSWindow?
+    private var soundCheckbox: NSButton?
+    private var settingsHint: NSTextField?
     private(set) var setupError: Error?
     private var running = false
     private var displayedMuteState: Bool?
@@ -43,7 +46,10 @@ final class CoolClockSaverView: ScreenSaverView {
 
     override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)
-        if !isPreview { audio = MinuteAudioPlayer(bundle: Bundle(for: CoolClockSaverView.self)) }
+        if !isPreview {
+            audio = MinuteAudioPlayer(bundle: Bundle(for: CoolClockSaverView.self))
+        }
+        reloadAudioPreferences()
         animationTimeInterval = 1 / 30
         wantsLayer = true
         layer?.backgroundColor = CGColor(red: 0.02, green: 0.04, blue: 0.10, alpha: 1)
@@ -82,11 +88,79 @@ final class CoolClockSaverView: ScreenSaverView {
 
     @objc func toggleAudio(_ sender: Any?) {
         guard let audio else { return }
-        audio.toggleMuted()
+        let enabled = isAudioMuted
+        guard ClockPreferences.setSoundEnabled(enabled) else { return }
+        audio.setMuted(!enabled)
         updateAudioFeedback()
     }
 
+    @objc func reloadAudioPreferences() {
+        if !ClockPreferences.applyInstallationChoice(from: Bundle(for: CoolClockSaverView.self).bundleURL) {
+            NSLog("Cool Clock could not import installation sound settings; retaining saved preferences.")
+        }
+        audio?.setMuted(!ClockPreferences.soundEnabled())
+        updateAudioFeedback()
+    }
+
+    override var hasConfigureSheet: Bool { true }
+
+    override var configureSheet: NSWindow? {
+        if settingsWindow == nil {
+            let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 220),
+                                 styleMask: .titled, backing: .buffered, defer: false)
+            sheet.title = "Настройки Cool Clock"
+            sheet.isReleasedWhenClosed = false
+            let title = NSTextField(labelWithString: "Звук заставки")
+            title.font = .boldSystemFont(ofSize: 20)
+            title.frame = NSRect(x: 24, y: 166, width: 430, height: 28)
+            let checkbox = NSButton(checkboxWithTitle: "Воспроизводить звук", target: nil, action: nil)
+            checkbox.frame = NSRect(x: 24, y: 120, width: 430, height: 24)
+            checkbox.setAccessibilityIdentifier("soundEnabled")
+            let hint = NSTextField(wrappingLabelWithString: "")
+            hint.font = .systemFont(ofSize: 12)
+            hint.frame = NSRect(x: 44, y: 68, width: 410, height: 42)
+            let cancel = NSButton(title: "Отмена", target: self, action: #selector(cancelSettings(_:)))
+            cancel.bezelStyle = .rounded
+            cancel.keyEquivalent = "\u{1b}"
+            cancel.frame = NSRect(x: 266, y: 20, width: 90, height: 32)
+            let save = NSButton(title: "Сохранить", target: self, action: #selector(saveSettings(_:)))
+            save.bezelStyle = .rounded
+            save.keyEquivalent = "\r"
+            save.frame = NSRect(x: 356, y: 20, width: 100, height: 32)
+            for view in [title, checkbox, hint, cancel, save] { sheet.contentView?.addSubview(view) }
+            settingsWindow = sheet
+            soundCheckbox = checkbox
+            settingsHint = hint
+        }
+        if settingsWindow?.sheetParent == nil {
+            reloadAudioPreferences()
+            soundCheckbox?.state = ClockPreferences.soundEnabled() ? .on : .off
+            settingsHint?.stringValue = "Музыка и сигналы в конце минуты.\nПо умолчанию звук выключен."
+            settingsHint?.textColor = .secondaryLabelColor
+        }
+        return settingsWindow
+    }
+
+    @objc private func saveSettings(_ sender: Any?) {
+        guard ClockPreferences.setSoundEnabled(soundCheckbox?.state == .on) else {
+            settingsHint?.stringValue = "Не удалось сохранить настройку. Попробуйте ещё раз."
+            settingsHint?.textColor = .systemRed
+            return
+        }
+        reloadAudioPreferences()
+        closeSettings()
+    }
+
+    @objc private func cancelSettings(_ sender: Any?) { closeSettings() }
+
+    private func closeSettings() {
+        guard let sheet = settingsWindow else { return }
+        sheet.sheetParent?.endSheet(sheet)
+        sheet.orderOut(nil)
+    }
+
     private func updateAudioFeedback() {
+        guard faceView != nil else { return }
         let muted = isAudioMuted
         guard displayedMuteState != muted else { return }
         displayedMuteState = muted
@@ -120,6 +194,7 @@ final class CoolClockSaverView: ScreenSaverView {
         super.startAnimation()
         running = true
         video?.start()
+        reloadAudioPreferences()
         do { try audio?.start(); audioError = nil } catch { audioError = error; NSLog("Cool Clock audio failed: %@", String(describing: error)) }
         animateOneFrame()
     }

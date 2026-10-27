@@ -10,12 +10,13 @@
 [Последний выпуск](https://github.com/pushipu/cool-clock/releases) ·
 [Инструкция по установке](docs/INSTALL.md)
 
-В DMG находятся заставка **Cool Clock.saver** и приложение **Cool Clock Preview**.
-Откройте заставку двойным нажатием и установите её через macOS. Приложение
-предпросмотра можно перенести в «Программы» и запускать отдельно.
-Также доступен ZIP только с заставкой. Контрольные суммы — в `SHA256SUMS` релиза.
+Начиная с **0.8.0**, в DMG находится **Cool Clock Installer.app**. Откройте
+мастер, выберите, нужен ли звук, и нажмите «Установить». При первой установке
+звук выключен. Мастер устанавливает заставку и предпросмотр только для текущего
+пользователя; затем выберите Cool Clock в системном разделе «Заставка».
+В релизе доступны DMG и контрольная сумма `SHA256SUMS`.
 
-**Первый выпуск предварительный.** Сборка имеет локальную ad-hoc подпись,
+**Выпуск предварительный.** Сборка имеет локальную ad-hoc подпись,
 без Developer ID и нотарификации Apple. macOS может потребовать разрешить
 открытие в «Системные настройки → Конфиденциальность и безопасность».
 Подробнее — в инструкции; отключать защиту macOS не требуется.
@@ -30,13 +31,16 @@
   на минутных отсечках.
 - Минутная аудиодорожка. Последние сигналы синхронизированы с секундной
   стрелкой; на длинном сигнале она удерживается на двенадцати.
-- В приложении предпросмотра щелчок по часам включает и выключает звук.
+- Звук системной заставки настраивается через её штатные «Параметры».
+  В предпросмотре доступны «Настройки…» (⌘,) и щелчок по часам; выбор сохраняется.
+  После установки настройки предпросмотра и системной заставки независимы.
   В системной заставке действие мышью завершает показ по правилам macOS.
 
 Минимальная система: **macOS 12**. Бинарники универсальные: Apple Silicon
 (`arm64`) и Intel (`x86_64`). Проверка на реальном Mac выполнена на Apple Silicon;
-Intel и системный ScreenSaver-host отдельно от нашего предпросмотра пока
-не проверены. iPhone-приложения в этом проекте пока нет.
+в macOS 27.0.1 проверены установка, обновление, системная миниатюра заставки
+и сохранение звука через её «Параметры». Intel пока не проверен.
+iPhone-приложения в этом проекте пока нет.
 
 ## Сборка из исходников
 
@@ -50,25 +54,31 @@ python3 scripts/fetch-media.py
 ./build-macos.sh
 ```
 
-Видео и аудио хранятся в GitHub Releases. Загрузчик берёт проверенный ZIP
-заставки и извлекает только три нужных медиафайла, проверяя SHA-256 архива
-и каждого файла. Уже проверенные файлы повторно не скачиваются.
+Видео и аудио хранятся в GitHub Releases. Загрузчик намеренно использует
+проверенный ZIP заставки **0.7.1** и извлекает только три нужных медиафайла,
+проверяя SHA-256 архива и каждого файла. Уже проверенные файлы повторно не скачиваются.
 Для сборки без сети можно передать заранее скачанный ZIP:
 
 ```sh
 python3 scripts/fetch-media.py --archive /path/to/Cool-Clock-0.7.1-saver.zip
 ```
 
-Результат сборки: `build/Cool Clock.saver` и `build/Cool Clock Preview.app`.
+Результат сборки: `build/Cool Clock.saver`, `build/Cool Clock Preview.app`
+и `build/Cool Clock Installer.app` с вложенным установочным пакетом.
 
 ```sh
 npm test
 python3 -m unittest discover -s tests -p 'test_*.py'
+xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework ScreenSaver macos/ClockPreferences.swift tests/ClockPreferencesTests.swift -o build/preferences-tests
+build/preferences-tests
+xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework ScreenSaver macos/ClockPreferences.swift macos/ClockInstallation.swift tests/ClockInstallationTests.swift -o build/installation-tests
+build/installation-tests
 "build/Cool Clock Preview.app/Contents/MacOS/CoolClockPreview" --self-test
 ./scripts/package-macos.sh
 ```
 
-Упаковщик создаёт DMG, ZIP заставки и `SHA256SUMS` в `dist/`.
+Упаковщик создаёт DMG с единственным `Cool Clock Installer.app` и `SHA256SUMS`
+в `dist/`. ZIP заставки для новых выпусков не создаётся.
 
 ## Проверка и производительность
 

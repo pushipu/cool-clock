@@ -26,7 +26,11 @@ final class MinuteAudioPlayer {
     static var ownerCount: Int { owners.count }
 
     func toggleMuted() {
-        Self.isMuted.toggle()
+        setMuted(!Self.isMuted)
+    }
+
+    func setMuted(_ value: Bool) {
+        Self.isMuted = value
         Self.sharedPlayer?.volume = Self.isMuted ? 0 : 1
     }
 
