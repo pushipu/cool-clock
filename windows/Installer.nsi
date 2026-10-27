@@ -10,7 +10,8 @@ RequestExecutionLevel user
 Name "Cool Clock"
 OutFile "${OUTPUT_FILE}"
 InstallDir "$LOCALAPPDATA\Cool Clock"
-SetCompressor /SOLID lzma
+; Videos are already compressed; solid LZMA saved under 0.5% in this package.
+SetCompressor zlib
 !define MUI_ICON "${PAYLOAD_DIR}\ClockIcon.ico"
 !define MUI_UNICON "${PAYLOAD_DIR}\ClockIcon.ico"
 !define MUI_ABORTWARNING

@@ -154,7 +154,8 @@ public static class SmokeWindow {
 '@
     $parentWindow = [SmokeWindow]::Start()
     Assert-True ($parentWindow -ne [IntPtr]::Zero) 'Cannot create embedded preview parent'
-    $embedded = Start-Native $saver @('/p', $parentWindow.ToInt64().ToString())
+    Check-Render 'embedded-render' ("/p:" + $parentWindow.ToInt64().ToString())
+    $embedded = Start-Native $saver @('/p', $parentWindow.ToInt64().ToString(), '--smoke-report', (Join-Path $evidence 'embedded-update.json'), '--seconds', '120')
     $active = Start-Native $saver @('--preview', '--smoke-report', (Join-Path $evidence 'update-preview.json'), '--seconds', '120')
     $deadline = [DateTime]::UtcNow.AddSeconds(20)
     do {

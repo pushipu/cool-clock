@@ -83,7 +83,7 @@ static bool Parse(const std::vector<std::wstring>& args, Arguments& out) {
             } else return false;
         }
     }
-    return (out.report.empty() && out.seconds == 0) || out.mode == Mode::Window || out.mode == Mode::Screen;
+    return (out.report.empty() && out.seconds == 0) || out.mode == Mode::Window || out.mode == Mode::Screen || out.mode == Mode::Embedded;
 }
 static bool LocalResource(const std::wstring& uri) { return uri.rfind(L"https://cool-clock.local/", 0) == 0; }
 static bool LocalPage(const std::wstring& uri) {
@@ -112,6 +112,7 @@ static int SelfTest() {
         {{L"/p",L"18446744073709551616"},false,Mode::Config,0},
         {{L"/s",L"/c"},false,Mode::Config,0}, {{L"--wat"},false,Mode::Config,0},
         {{L"--preview",L"--seconds",L"3",L"--smoke-report",L"report.json"},true,Mode::Window,0},
+        {{L"/p",L"123",L"--seconds",L"15",L"--smoke-report",L"embedded.json"},true,Mode::Embedded,123},
         {{L"--seconds",L"0"},false,Mode::Config,0}, {{L"--seconds",L"3"},false,Mode::Config,0}
     };
     for (const auto& c : cases) { Arguments a; bool ok = Parse(c.args,a); if (ok != c.ok || (ok && (a.mode != c.mode || a.parent != c.parent))) return 1; }
