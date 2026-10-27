@@ -7,7 +7,7 @@ saver="$build/Cool Clock.saver"
 preview="$build/Cool Clock Preview.app"
 installer="$build/Cool Clock Installer.app"
 mkdir -p "$build/objects" "$saver/Contents/MacOS" "$saver/Contents/Resources" "$preview/Contents/MacOS" "$preview/Contents/Resources" "$preview/Contents/PlugIns" "$installer/Contents/MacOS" "$installer/Contents/Resources"
-for resource in assets/cloud-swift.mp4 assets/cloud-cirrus.mp4 assets/rectangle-tracks.json assets/ClockIcon.icns macos/Clouds.metal; do
+for resource in assets/cloud-swift.mp4 assets/cloud-cirrus.mp4 assets/rectangle-tracks.json assets/ClockIcon.icns assets/thumbnail.png assets/thumbnail@2x.png macos/Clouds.metal; do
   if [[ ! -f "$resource" ]]; then
     echo "Missing live cloud resource: $resource" >&2
     exit 1
@@ -34,10 +34,12 @@ for name, executable, identifier, kind in [
     contents = root / 'build' / name / 'Contents'
     info = {'CFBundleExecutable': executable, 'CFBundleIdentifier': identifier,
             'CFBundleName': name.rsplit('.', 1)[0], 'CFBundlePackageType': kind,
-            'CFBundleVersion': '14', 'CFBundleShortVersionString': '0.8.0',
+            'CFBundleVersion': '15', 'CFBundleShortVersionString': '0.8.1',
             'LSMinimumSystemVersion': '12.0', 'NSHighResolutionCapable': True,
             'CFBundleIconFile': 'ClockIcon.icns'}
     if kind == 'BNDL':
+        for thumbnail in ['thumbnail.png', 'thumbnail@2x.png']:
+            shutil.copy2(root / 'assets' / thumbnail, contents / 'Resources' / thumbnail)
         info['NSPrincipalClass'] = 'CoolClockSaverView'
     else:
         info['NSPrincipalClass'] = 'NSApplication'
