@@ -155,7 +155,7 @@ END
     run(args.nsis, "-V3", "-NOCD", "-INPUTCHARSET", "UTF8", f"-DPAYLOAD_DIR={output}", f"-DOUTPUT_FILE={destination}", f"-DVERSION={VERSION}", ROOT / "windows/Installer.nsi", env=environment)
     pe(destination, 0x14C)
     digest = hashlib.sha256(destination.read_bytes()).hexdigest()
-    (destination.parent / "Windows-SHA256SUMS").write_text(f"{digest}  {destination.name}\n")
+    (destination.parent / "Windows-SHA256SUMS").write_text(f"{digest}  {destination.name}\n", newline="\n")
     print(f"Built {destination} ({destination.stat().st_size} bytes)\nSHA256 {digest}")
 
 
