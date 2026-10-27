@@ -513,7 +513,8 @@ int WINAPI wWinMain(HINSTANCE h,HINSTANCE,PWSTR,int) {
             else {
                 std::wstring dataRoot=std::wstring(appData)+L"\\CoolClock";CoTaskMemFree(appData);
                 CreateDirectoryW(dataRoot.c_str(),nullptr);
-                std::wstring data=dataRoot+L"\\WebView2";
+                // Control-panel children and top-level hosts can conflict when sharing a WebView2 data folder.
+                std::wstring data=dataRoot+(options.mode==Mode::Embedded?L"\\WebView2-preview":L"\\WebView2");
                 auto callback=Handler<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,HRESULT,ICoreWebView2Environment*>(IID_ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,[](HRESULT hr,ICoreWebView2Environment* env)->HRESULT {if(stopping)return S_OK;if(FAILED(hr)||!env){Error(nullptr,L"Не удалось запустить WebView2",hr);return S_OK;}environment=env;env->AddRef();for(auto& v:views)Attach(v.get());return S_OK;});
                 auto environmentOptions=new Options();hr=create(nullptr,data.c_str(),environmentOptions,callback);environmentOptions->Release();callback->Release();if(FAILED(hr))Error(nullptr,L"Не удалось инициализировать WebView2",hr);
             }
