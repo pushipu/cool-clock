@@ -1,0 +1,66 @@
+{
+  "llvm_mingw": {
+    "version": "20261020",
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/llvm-mingw-20261020-ucrt-macos-universal.tar.xz",
+    "sha256": "e9c13e4ede38e715003ffc674d4d00a1088df8235439d1f0c16188ff0704c17e",
+    "directory": "llvm-mingw-20261020-ucrt-macos-universal",
+    "filename": "llvm-mingw-20261020-ucrt-macos-universal.tar.xz"
+  },
+  "webview2": {
+    "version": "1.0.4314.35",
+    "url": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.4314.35/microsoft.web.webview2.1.0.4314.35.nupkg",
+    "sha256": "90778deb1b77e36292828b4b5833c9255c27533f40e0ddd55891ae718944edc4",
+    "directory": "webview2-1.0.4314.35",
+    "filename": "webview2-1.0.4314.35.nupkg"
+  },
+  "nsis_macos_arm64": {
+    "version": "3.12",
+    "url": "https://ghcr.io/v2/homebrew/core/makensis/blobs/sha256:eb77aff3f2fb8a98dd649f62760c0774a8c57e659fca3dd83ea5d21990d4f259",
+    "sha256": "eb77aff3f2fb8a98dd649f62760c0774a8c57e659fca3dd83ea5d21990d4f259",
+    "directory": "makensis/3.12",
+    "filename": "makensis-3.12.arm64_golden_gate.bottle.tar.gz",
+    "executable": "bin/makensis"
+  },
+  "webview2_bootstrapper": {
+    "url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/4a41d80d-4493-4463-a466-d0988b97f1c4/MicrosoftEdgeWebview2Setup.exe",
+    "sha256": "ca4c9016c70e2184c5e231662e0e98abf4826647180ef3faab32fcb1ca2ec15e",
+    "filename": "MicrosoftEdgeWebview2Setup.exe",
+    "source": "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+  },
+  "llvm_mingw_windows_x86_64": {
+    "version": "20261020",
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/llvm-mingw-20261020-ucrt-x86_64.zip",
+    "sha256": "fd5462b7f5d93b2ff981fcd3f9c7e427e47f3203c64ea91c27bcc444eebd74cd",
+    "directory": "llvm-mingw-20261020-ucrt-x86_64",
+    "filename": "llvm-mingw-20261020-ucrt-x86_64.zip"
+  },
+  "llvm_mingw_windows_aarch64": {
+    "version": "20261020",
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/llvm-mingw-20261020-ucrt-aarch64.zip",
+    "sha256": "8f24fedd0b75c674c6c83dec2d76a7ac31a690120212843a17e465ef49854f69",
+    "directory": "llvm-mingw-20261020-ucrt-aarch64",
+    "filename": "llvm-mingw-20261020-ucrt-aarch64.zip"
+  },
+  "nsis_windows": {
+    "version": "3.12",
+    "url": "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12.zip",
+    "sha256": "56581f90db321581c5381193d796fffcf2d24b2f8fed2160a6c6a3baa67f2c4f",
+    "directory": "nsis-3.12",
+    "filename": "nsis-3.12.zip",
+    "executable": "makensis.exe"
+  },
+  "hosts": {
+    "Darwin-arm64": {
+      "toolchain": "llvm_mingw",
+      "nsis": "nsis_macos_arm64"
+    },
+    "Windows-x64": {
+      "toolchain": "llvm_mingw_windows_x86_64",
+      "nsis": "nsis_windows"
+    },
+    "Windows-arm64": {
+      "toolchain": "llvm_mingw_windows_aarch64",
+      "nsis": "nsis_windows"
+    }
+  }
+}

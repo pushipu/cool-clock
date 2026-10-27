@@ -1,0 +1,60 @@
+name: Windows preview verification
+on:
+  push:
+    branches: [codex/windows-preview]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            architecture: x64
+          - runner: windows-11-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Fetch media and pinned build tools
+        run: |
+          New-Item -ItemType Directory -Force output/windows-ci | Out-Null
+          python3 -c "import sys; print(sys.version); assert sys.version_info >= (3, 12)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python3 scripts/fetch-media.py 2>&1 | Tee-Object output/windows-ci/media.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python3 scripts/fetch-windows-dependencies.py 2>&1 | Tee-Object output/windows-ci/dependencies.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build both architectures and installer
+        run: |
+          python3 scripts/build-windows.py 2>&1 | Tee-Object output/windows-ci/build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Native installation, rendering, update and removal
+        run: ./tests/WindowsSmoke.ps1 -ExpectedArchitecture '${{ matrix.architecture }}'
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-proof-${{ matrix.architecture }}
+          path: output/windows-ci/
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - name: Upload experimental installer
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-preview-built-on-${{ matrix.architecture }}
+          path: |
+            dist/*Windows-Setup.exe
+            dist/Windows-SHA256SUMS
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
