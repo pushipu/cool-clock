@@ -5,14 +5,14 @@ RequestExecutionLevel user
 !include LogicLib.nsh
 !include x64.nsh
 !include WinVer.nsh
-!include "${PAYLOAD_DIR}/payload-files.nsh"
+!include "${PAYLOAD_DIR}\payload-files.nsh"
 
 Name "Cool Clock"
 OutFile "${OUTPUT_FILE}"
 InstallDir "$LOCALAPPDATA\Cool Clock"
 SetCompressor /SOLID lzma
-!define MUI_ICON "${PAYLOAD_DIR}/ClockIcon.ico"
-!define MUI_UNICON "${PAYLOAD_DIR}/ClockIcon.ico"
+!define MUI_ICON "${PAYLOAD_DIR}\ClockIcon.ico"
+!define MUI_UNICON "${PAYLOAD_DIR}\ClockIcon.ico"
 !define MUI_ABORTWARNING
 !define MUI_WELCOMEPAGE_TEXT "Установщик добавит Cool Clock для текущего пользователя.$\r$\n$\r$\nРабота и предпросмотр на настоящем Windows-компьютере ещё не проверены.$\r$\n$\r$\nДля продолжения нажмите Далее."
 !insertmacro MUI_PAGE_WELCOME
@@ -156,9 +156,9 @@ Function ${PREFIX}CloseClock
   ClearErrors
   SetOutPath "$PLUGINSDIR"
   ${If} $NativeArch == "arm64"
-    File /oname=CloseClock.exe "${PAYLOAD_DIR}/arm64/Cool Clock.scr"
+    File /oname=CloseClock.exe "${PAYLOAD_DIR}\arm64\Cool Clock.scr"
   ${Else}
-    File /oname=CloseClock.exe "${PAYLOAD_DIR}/x64/Cool Clock.scr"
+    File /oname=CloseClock.exe "${PAYLOAD_DIR}\x64\Cool Clock.scr"
   ${EndIf}
   IfErrors close_failed
   ExecWait '"$PLUGINSDIR\CloseClock.exe" --close-existing "$INSTDIR\Cool Clock.scr"' $0
@@ -218,11 +218,11 @@ Section "Cool Clock"
   IfErrors failed
   SetOutPath "$StageDir"
   ${If} $NativeArch == "arm64"
-    File "${PAYLOAD_DIR}/arm64/Cool Clock.scr"
-    File "${PAYLOAD_DIR}/arm64/WebView2Loader.dll"
+    File "${PAYLOAD_DIR}\arm64\Cool Clock.scr"
+    File "${PAYLOAD_DIR}\arm64\WebView2Loader.dll"
   ${Else}
-    File "${PAYLOAD_DIR}/x64/Cool Clock.scr"
-    File "${PAYLOAD_DIR}/x64/WebView2Loader.dll"
+    File "${PAYLOAD_DIR}\x64\Cool Clock.scr"
+    File "${PAYLOAD_DIR}\x64\WebView2Loader.dll"
   ${EndIf}
   IfErrors stage_failed
   ExecWait '"$StageDir\Cool Clock.scr" --check-runtime' $0
@@ -235,7 +235,7 @@ runtime_install:
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
   ClearErrors
-  File "${PAYLOAD_DIR}/MicrosoftEdgeWebview2Setup.exe"
+  File "${PAYLOAD_DIR}\MicrosoftEdgeWebview2Setup.exe"
   IfErrors stage_failed
   ExecWait '"$PLUGINSDIR\MicrosoftEdgeWebview2Setup.exe" /silent /install' $0
   ClearErrors
@@ -248,7 +248,7 @@ runtime_ready:
   ClearErrors
   !insertmacro InstallCommon "$StageDir"
   SetOutPath "$StageDir"
-  File "${PAYLOAD_DIR}/ClockIcon.ico"
+  File "${PAYLOAD_DIR}\ClockIcon.ico"
   WriteUninstaller "$StageDir\Uninstall.exe"
   FileOpen $0 "$StageDir\.cool-clock-install" w
   FileWrite $0 "CoolClockInstaller-v1"

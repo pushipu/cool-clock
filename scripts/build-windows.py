@@ -152,7 +152,7 @@ END
     environment = dict(os.environ)
     nsis_root = args.nsis.parent if (args.nsis.parent / "Stubs").is_dir() else args.nsis.parent.parent / "share/nsis"
     environment["NSISDIR"] = str(nsis_root)
-    run(args.nsis, "-V3", "-NOCD", f"-DPAYLOAD_DIR={output}", f"-DOUTPUT_FILE={destination}", f"-DVERSION={VERSION}", ROOT / "windows/Installer.nsi", env=environment)
+    run(args.nsis, "-V3", "-NOCD", "-INPUTCHARSET", "UTF8", f"-DPAYLOAD_DIR={output}", f"-DOUTPUT_FILE={destination}", f"-DVERSION={VERSION}", ROOT / "windows/Installer.nsi", env=environment)
     pe(destination, 0x14C)
     digest = hashlib.sha256(destination.read_bytes()).hexdigest()
     (destination.parent / "Windows-SHA256SUMS").write_text(f"{digest}  {destination.name}\n")
