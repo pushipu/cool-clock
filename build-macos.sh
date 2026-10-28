@@ -34,7 +34,7 @@ for name, executable, identifier, kind in [
     contents = root / 'build' / name / 'Contents'
     info = {'CFBundleExecutable': executable, 'CFBundleIdentifier': identifier,
             'CFBundleName': name.rsplit('.', 1)[0], 'CFBundlePackageType': kind,
-            'CFBundleVersion': '15', 'CFBundleShortVersionString': '0.8.1',
+            'CFBundleVersion': '16', 'CFBundleShortVersionString': '0.8.2',
             'LSMinimumSystemVersion': '12.0', 'NSHighResolutionCapable': True,
             'CFBundleIconFile': 'ClockIcon.icns'}
     if kind == 'BNDL':
@@ -78,7 +78,7 @@ for arch in arm64 x86_64; do
   xcrun swiftc -swift-version 5 -O -sdk "$sdk" -target "$arch-apple-macos12.0" \
     -module-cache-path "$build/ModuleCache" -module-name CoolClockInstaller \
     -framework AppKit -framework ScreenSaver \
-    macos/ClockPreferences.swift macos/ClockInstallation.swift macos/Installer.swift \
+    macos/ClockPreferences.swift macos/ClockInstallation.swift macos/ClockSetupGuide.swift macos/SetupGuideView.swift macos/SetupCoach.swift macos/Installer.swift \
     -o "$build/objects/CoolClockInstaller-$arch"
 done
 xcrun lipo -create "$build/objects/CoolClock-arm64" "$build/objects/CoolClock-x86_64" -output "$saver/Contents/MacOS/CoolClock"

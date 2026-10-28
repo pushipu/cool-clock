@@ -7,13 +7,17 @@
 
 ## Скачать и установить
 
-[Последний выпуск](https://github.com/pushipu/cool-clock/releases) ·
+[Выпуск для macOS](https://github.com/pushipu/cool-clock/releases/tag/v0.8.2) ·
 [Инструкция по установке](docs/INSTALL.md)
 
 Начиная с **0.8.0**, в DMG находится **Cool Clock Installer.app**. Откройте
 мастер, выберите, нужен ли звук, и нажмите «Установить». При первой установке
 звук выключен. Мастер устанавливает заставку и предпросмотр только для текущего
-пользователя; затем выберите Cool Clock в системном разделе «Заставка».
+пользователя. В **0.8.2** мастер проводит через настройку macOS: кнопки открывают
+нужные разделы, а плавающая подсказка показывает выделенные пункты. В том числе
+«Крупные часы → Никогда», чтобы системные часы не перекрывали Cool Clock.
+Дополнительные разрешения для гайда не нужны. Если заставка уже установлена,
+гайд можно открыть с первого экрана мастера без переустановки.
 В релизе доступны DMG и контрольная сумма `SHA256SUMS`.
 
 **Выпуск предварительный.** Сборка имеет локальную ad-hoc подпись,
@@ -73,6 +77,10 @@ xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework Sc
 build/preferences-tests
 xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework ScreenSaver macos/ClockPreferences.swift macos/ClockInstallation.swift tests/ClockInstallationTests.swift -o build/installation-tests
 build/installation-tests
+xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache macos/ClockSetupGuide.swift tests/ClockSetupGuideTests.swift -o build/setup-guide-tests
+build/setup-guide-tests
+xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework AppKit macos/ClockSetupGuide.swift macos/SetupGuideView.swift macos/SetupCoach.swift tests/SetupCoachTests.swift -o build/setup-coach-tests
+build/setup-coach-tests
 "build/Cool Clock Preview.app/Contents/MacOS/CoolClockPreview" --self-test
 ./scripts/package-macos.sh
 ```
