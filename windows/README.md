@@ -1,91 +1,13 @@
-# Cool Clock for Windows
+# Cool Clock для Windows
 
-Experimental Windows port: native x64 and ARM64 `.scr` hosts, a shared
-WebGL/Canvas renderer, and one per-user installer that selects the CPU architecture.
-The cloud videos, rectangle tracks and clock glyphs come from the macOS version.
+Windows-версия часов с теми же видео облаков, плавающими прямоугольниками и циферблатом, что и на Mac.
 
-[Установка и настройка заставки в Windows 10/11](INSTALL.ru.md).
+[Скачать установщик 0.9.1](https://github.com/pushipu/cool-clock/releases/download/v0.9.1-windows-preview.1/Cool-Clock-0.9.1-Windows-Setup.exe) · [Пошаговая инструкция](INSTALL.ru.md)
 
-The host uses the Microsoft WebView2 Evergreen Runtime. Windows 11 includes it;
-the installer checks for it and runs the official Microsoft bootstrapper only when
-necessary. That bootstrapper requires an internet connection.
+Один установщик подходит для Windows 10/11 на Intel/AMD x64 и ARM64. После установки он покажет, как выбрать Cool Clock заставкой, задать интервал и проверить таймер отключения экрана. Звук по умолчанию выключен; его можно включить в мастере или в параметрах заставки.
 
-## Behaviour
+Если на компьютере нет Microsoft WebView2 Runtime, установщик загрузит его с сайта Microsoft. Для этого потребуется интернет.
 
-- `/s`: screen saver on all monitors; one audio output; input ends the saver.
-- `/p HWND`: embedded, silent preview in the Windows screen saver control panel.
-- `/c`: native sound settings with Save and Cancel; sound defaults to off.
-- `--preview`: a resizable clock window; clicking toggles and saves sound.
-- `--check-runtime`: runtime presence check for the installer.
-- `--preview --smoke-report report.json --seconds 15`: bounded native smoke run.
+Версия предварительная, установщик без цифровой подписи. Автоматический запуск после бездействия и работа после блокировки ещё требуют проверки на обычных ПК.
 
-The installer uses `%LOCALAPPDATA%\Cool Clock`. It does not set a lock password
-or inactivity timeout. After copying files, four guide pages explain selecting
-Cool Clock, saving the wait interval, checking screen/sleep timers, and testing
-preview followed by actual idle startup. The highlighted rows are instructions,
-not Windows controls. Only the explicitly labelled **«Выбрать Cool Clock в Windows»**
-button changes the selected saver; the other Settings buttons only open their
-dialogs. Next does not verify or save Windows settings. Removal deletes installed
-files, not the shared Microsoft Runtime.
-
-The embedded control-panel preview uses a separate WebView2 data folder so it
-can run alongside the full-screen saver or a standalone preview without a
-shared-environment conflict.
-
-## Build on macOS or Windows
-
-The automatic tool fetcher supports Apple Silicon macOS and native x64/ARM64
-Windows hosts. It downloads pinned LLVM MinGW, WebView2 SDK and NSIS into
-`build/windows-tools`; no global installation is required. Python 3.12+ and
-Node.js 18+ are used for tooling and tests. Each host builds both architectures.
-
-```sh
-python3 scripts/fetch-media.py
-python3 scripts/fetch-windows-dependencies.py
-python3 scripts/build-windows.py
-npm test
-```
-
-Output: `dist/Cool-Clock-0.9.1-Windows-Setup.exe`. The single installer contains
-both architectures and one copy of the cloud/audio assets. SHA-256 is stored in
-`dist/Windows-SHA256SUMS`.
-
-Existing compatible tool installations can be supplied using `--toolchain`,
-`--sdk` and `--nsis`. On Windows, the compiler must be LLVM MinGW, not MSVC.
-
-The `Windows preview verification` GitHub workflow builds and tests natively on
-x64 and ARM64 runners. It checks silent installation, rendering, update with
-active previews, and removal without changing screen-lock or timeout settings.
-Its JSON reports explicitly distinguish these checks from actual idle/lock tests.
-
-## Verification required before a stable Windows release
-
-Native Windows runners have exercised installation, moving-video playback in
-windowed/full-screen/embedded modes, updates with active previews, and removal
-with user-file preservation on x64 and ARM64. The workflow publishes JSON proof
-for each stage and checks that screen-lock and timeout settings remain unchanged.
-
-Before a stable release, verify on physical Windows PCs: automatic idle startup,
-secure resume, audible minute-boundary timing, several monitors, exit on input,
-and CPU/GPU use. CI playback does not establish physical-device performance.
-
-Microsoft still tracks a WebView2 issue where manual testing works but automatic
-screen saver startup fails: [WebView2Feedback #945](https://github.com/MicrosoftEdge/WebView2Feedback/issues/945).
-Therefore this build must pass a real idle-start test with the usual Windows
-login-on-resume setting before it can be considered a working system screen saver.
-WebView2 does not support running under SYSTEM before user login. Do not disable
-SmartScreen, screen locking or the browser sandbox to work around these limits.
-
-The Mac and Windows renders are compared at fixed scene times; the rectangle
-model also has golden snapshots generated by the native Swift implementation.
-
-To regenerate those snapshots after an intentional native scene change:
-
-```sh
-xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache macos/CloudScene.swift tests/ExportWindowsCloudScene.swift -o build/export-windows-scene
-build/export-windows-scene
-npm test
-```
-
-Sources remain subject to the repository LICENSE. The package includes separate
-Microsoft SDK and cloud-video notices.
+[Сборка из исходников и проверки](../docs/DEVELOPMENT.md#windows) · [Версия для macOS](../README.md)
