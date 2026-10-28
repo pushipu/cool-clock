@@ -1,5 +1,6 @@
 import AppKit
 
+
 @main
 final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var window: NSWindow!
@@ -11,6 +12,8 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var installing = false
     private var installedPreview: URL?
     private var openingPreview = false
+    private let setupSteps = ClockSetupGuide.steps(for: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
+    private var coach: SetupCoach?
 
     static func main() {
         let app = NSApplication.shared
@@ -80,6 +83,9 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func showPage() {
         for view in content.arrangedSubviews { content.removeArrangedSubview(view); view.removeFromSuperview() }
+        content.spacing = page >= 3 ? 12 : 16
+        let size = page >= 3 ? NSSize(width: 760, height: 700) : NSSize(width: 610, height: 420)
+        if window.contentView?.frame.size != size { window.setContentSize(size); window.center() }
         backButton.isHidden = false
         backButton.isEnabled = !installing
         nextButton.isEnabled = !installing
@@ -94,6 +100,12 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             label("Установить Cool Clock", size: 26, bold: true)
             label("Живые облака и часы на экране вашего Mac.")
             label("Мастер установит заставку и приложение предпросмотра для вашей учётной записи. Пароль администратора не понадобится.")
+            let saver = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Screen Savers/Cool Clock.saver")
+            if Bundle(url: saver)?.bundleIdentifier == "ru.coolclock.screensaver" {
+                let guide = NSButton(title: "Cool Clock уже установлен: настроить macOS…", target: self, action: #selector(startSetupGuide))
+                guide.bezelStyle = .rounded
+                content.addArrangedSubview(guide)
+            }
             backButton.title = "Отмена"; nextButton.title = "Продолжить"
         case 1:
             label("Звук заставки", size: 26, bold: true)
@@ -113,25 +125,88 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             progress.startAnimation(nil)
             backButton.isHidden = true; nextButton.title = "Установка…"
         default:
-            label("Cool Clock установлен", size: 26, bold: true)
-            label(soundButton.state == .on ? "Звук включён." : "Звук выключен.")
-            label("Откройте настройки macOS и выберите Cool Clock в разделе заставок. В новых версиях macOS этот раздел может находиться внутри «Обои».")
-            let preview = NSButton(title: "Открыть предпросмотр", target: self, action: #selector(openPreview))
-            preview.bezelStyle = .rounded
-            content.addArrangedSubview(preview)
-            backButton.title = "Готово"; nextButton.title = "Открыть настройки macOS"
+            let index = page - 3
+            let step = setupSteps[index]
+            label("Cool Clock установлен · Настройка macOS · Шаг \(index + 1) из \(setupSteps.count)", size: 12, bold: true)
+            label(step.title, size: 25, bold: true)
+            label(step.instructions)
+            let illustration = SetupGuideView(step: step)
+            content.addArrangedSubview(illustration)
+            illustration.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
+            label(step.footnote, size: 12)
+            let actions = NSStackView()
+            actions.orientation = .horizontal
+            actions.spacing = 12
+            let settings = NSButton(title: step.settingsButtonTitle, target: self, action: #selector(openGuideSettings))
+            settings.bezelStyle = .rounded
+            actions.addArrangedSubview(settings)
+            if installedPreview != nil {
+                let preview = NSButton(title: "Отдельное окно часов", target: self, action: #selector(openPreview))
+                preview.bezelStyle = .rounded
+                actions.addArrangedSubview(preview)
+            }
+            content.addArrangedSubview(actions)
+            label("Выполните шаг в системных настройках и вернитесь сюда. Кнопка «Дальше» не меняет настройки автоматически.", size: 12)
+            backButton.title = index == 0 ? "Закрыть" : "Назад"
+            nextButton.title = index == setupSteps.count - 1 ? "Готово" : "Дальше"
+        }
+        if page >= 3, let coach {
+            coach.show(step: setupSteps[page - 3], index: page - 3, total: setupSteps.count)
         }
     }
 
     @objc private func back() {
         guard !installing else { return }
-        if page == 1 { page = 0; showPage() } else { NSApp.terminate(nil) }
+        if page == 1 { page = 0; showPage() }
+        else if page > 3 {
+            page -= 1; showPage()
+            if coach != nil { openSystemSettings(pane: setupSteps[page - 3].pane) }
+        }
+        else { NSApp.terminate(nil) }
     }
 
     @objc private func next() {
         if page == 0 { page = 1; showPage() }
         else if page == 1 { install() }
-        else if page == 3 { openSystemSettings() }
+        else if page >= 3 {
+            if page - 3 == setupSteps.count - 1 { NSApp.terminate(nil) }
+            else {
+                page += 1; showPage()
+                if coach != nil { openSystemSettings(pane: setupSteps[page - 3].pane) }
+            }
+        }
+    }
+
+    @objc private func startSetupGuide() {
+        let preview = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications/Cool Clock Preview.app")
+        if Bundle(url: preview)?.bundleIdentifier == "ru.coolclock.preview" { installedPreview = preview }
+        page = 3
+        showPage()
+    }
+
+    @objc private func openGuideSettings() {
+        guard page >= 3, setupSteps.indices.contains(page - 3) else { return }
+        let requestedPage = page
+        openSystemSettings(pane: setupSteps[page - 3].pane) { [weak self] in
+            guard let self, self.page == requestedPage else { return }
+            if self.coach == nil {
+                self.coach = SetupCoach(onNext: { [weak self] in self?.next() },
+                    onBack: { [weak self] in self?.back() },
+                    onOpenSettings: { [weak self] in
+                        guard let self else { return }
+                        self.openSystemSettings(pane: self.setupSteps[self.page - 3].pane)
+                    }, onReturn: { [weak self] in self?.returnToInstaller() })
+            }
+            self.coach?.show(step: self.setupSteps[self.page - 3], index: self.page - 3, total: self.setupSteps.count)
+            self.window.orderOut(nil)
+        }
+    }
+
+    private func returnToInstaller() {
+        coach?.stop()
+        coach = nil
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func install() {
@@ -177,6 +252,7 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func showError(_ message: String) {
+        if !window.isVisible { returnToInstaller() }
         let alert = NSAlert()
         alert.messageText = "Не удалось завершить действие"
         alert.informativeText = message
@@ -195,26 +271,51 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         openApplication(url, newInstance: true)
     }
 
-    private func openSystemSettings() {
-        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.systempreferences") else {
+    private func openSystemSettings(pane: String? = nil, onOpen: (() -> Void)? = nil) {
+        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.systempreferences") else {
             showError("Откройте системные настройки из меню Apple и выберите Cool Clock в разделе заставок.")
             return
         }
-        openApplication(url)
+        guard let pane, let url = URL(string: "x-apple.systempreferences:\(pane)") else {
+            openApplication(app, onOpen: onOpen)
+            return
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: configuration) { _, error in
+            DispatchQueue.main.async {
+                if error != nil {
+                    self.openApplication(app) {
+                        self.showError("Ссылка на раздел не сработала. Выберите путь из подсказки в системных настройках вручную.")
+                    }
+                } else { onOpen?() }
+            }
+        }
     }
 
-    private func openApplication(_ url: URL, newInstance: Bool = false) {
+    private func openApplication(_ url: URL, newInstance: Bool = false, onOpen: (() -> Void)? = nil) {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = newInstance
         NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, error in
             DispatchQueue.main.async {
                 if newInstance { self.openingPreview = false }
                 if let error { self.showError(error.localizedDescription) }
+                else { onOpen?() }
             }
         }
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool { !installing }
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply { installing ? .terminateCancel : .terminateNow }
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        return installing ? .terminateCancel : .terminateNow
+    }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { coach == nil }
+    func applicationWillTerminate(_ notification: Notification) {
+        coach?.stop()
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let coach, page >= 3 {
+            coach.show(step: setupSteps[page - 3], index: page - 3, total: setupSteps.count)
+        } else if !flag && !installing { returnToInstaller() }
+        return true
+    }
 }
