@@ -50,7 +50,7 @@ build/setup-coach-tests
 ./scripts/package-macos.sh
 ```
 
-Результат упаковки: `dist/Cool-Clock-0.9.2-macOS.dmg` и `dist/SHA256SUMS`.
+Результат упаковки: `dist/Cool-Clock-0.9.3-macOS.dmg` и `dist/SHA256SUMS`.
 
 Для замера отрисовки и экспорта кадра:
 
@@ -73,7 +73,7 @@ npm test
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-Результат: `dist/Cool-Clock-0.9.2-Windows-Setup.exe` и `dist/Windows-SHA256SUMS`. В одном установщике находятся обе архитектуры и одна копия медиафайлов. Для своих путей к инструментам доступны параметры `--toolchain`, `--sdk` и `--nsis`; компилятор должен быть LLVM MinGW.
+Результат: `dist/Cool-Clock-0.9.3-Windows-Setup.exe` и `dist/Windows-SHA256SUMS`. В одном установщике находятся обе архитектуры и одна копия медиафайлов. Для своих путей к инструментам доступны параметры `--toolchain`, `--sdk` и `--nsis`; компилятор должен быть LLVM MinGW.
 
 Режимы `Cool Clock.scr`:
 

@@ -36,7 +36,7 @@ for name, executable, identifier, kind in [
     contents = root / 'build' / name / 'Contents'
     info = {'CFBundleExecutable': executable, 'CFBundleIdentifier': identifier,
             'CFBundleName': name.rsplit('.', 1)[0], 'CFBundlePackageType': kind,
-            'CFBundleVersion': '17', 'CFBundleShortVersionString': version,
+            'CFBundleVersion': '18', 'CFBundleShortVersionString': version,
             'CFBundleDevelopmentRegion': 'en', 'CFBundleLocalizations': ['en', 'ru'],
             'LSMinimumSystemVersion': '12.0', 'NSHighResolutionCapable': True,
             'CFBundleIconFile': 'ClockIcon.icns'}

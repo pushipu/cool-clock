@@ -55,6 +55,78 @@ function Desktop-Policy {
         return $result | ConvertTo-Json -Compress
     } finally { if ($key) { $key.Dispose() } }
 }
+# This action is exercised only on the disposable CI runner. Restore exact registry
+# values and kinds before the existing installer policy invariance checks.
+function Check-SaverSelection([IntPtr]$Wizard, [string]$ButtonText, [int]$SetupId) {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Control Panel\Desktop', $true)
+    $snapshot = @{}
+    $wasActive = [SmokeWindow]::SaverActive()
+    $settings = $null
+    $settingsWindow = [IntPtr]::Zero
+    $existingIds = @(Get-Process rundll32 -ErrorAction SilentlyContinue | ForEach-Object Id)
+    foreach ($name in @('SCRNSAVE.EXE', 'ScreenSaveTimeOut', 'ScreenSaverIsSecure', 'ScreenSaveActive')) {
+        $snapshot[$name] = if ($key.GetValueNames() -contains $name) {
+            @{ Value = $key.GetValue($name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames); Kind = $key.GetValueKind($name) }
+        } else { $null }
+    }
+    try {
+        [SmokeWindow]::ClickNamedButton($Wizard, $ButtonText)
+        $deadline = [DateTime]::UtcNow.AddSeconds(30)
+        do {
+            if (-not $settings) {
+                $candidate = Get-CimInstance Win32_Process -Filter "Name = 'rundll32.exe' AND ParentProcessId = $SetupId" |
+                    Where-Object { $_.ProcessId -notin $existingIds -and $_.CommandLine -like '*desk.cpl,InstallScreenSaver*' } |
+                    Select-Object -First 1
+                if ($candidate) {
+                    $settings = Get-Process -Id $candidate.ProcessId
+                    $ownedProcesses.Add($settings)
+                }
+            }
+            if ($settings) { $settingsWindow = [SmokeWindow]::ComboWindow($settings.Id) }
+            if ($settingsWindow -ne [IntPtr]::Zero) { break }
+            Start-Sleep -Milliseconds 200
+        } while ([DateTime]::UtcNow -lt $deadline)
+        Assert-True ($settingsWindow -ne [IntPtr]::Zero) 'Select saver did not open its own Screen Saver Settings window'
+        $selectedPath = $key.GetValue('SCRNSAVE.EXE', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        $selection = [SmokeWindow]::ComboSelection($settingsWindow)
+        $proof.saverSelection = @{ path = $selectedPath; displayedSelection = $selection }
+        Assert-True ($selectedPath -is [string] -and -not $selectedPath.Contains('"')) "Selected saver path contains literal quotes or is missing: $selectedPath"
+        Assert-True ([IO.File]::Exists($selectedPath)) "Selected saver file does not exist: $selectedPath"
+        # InstallScreenSaver may store a valid 8.3 path. Compare its expanded identity.
+        $longPath = [SmokeWindow]::LongPath($selectedPath)
+        $proof.saverSelection.expandedPath = $longPath
+        Assert-True ([string]::Equals($longPath, [IO.Path]::GetFullPath($saver), [StringComparison]::OrdinalIgnoreCase)) "Selected saver is not the installed file: $selectedPath"
+        Assert-True ($selection -ceq 'Cool Clock') "Screen Saver Settings did not select Cool Clock: $selection"
+        $proof.stages += 'installer-selects-saver-in-windows-settings'
+    } finally {
+        try {
+            if ($settings -and -not $settings.HasExited) {
+                if ($settingsWindow -ne [IntPtr]::Zero) { [SmokeWindow]::CloseWindow($settingsWindow) }
+                if (-not $settings.WaitForExit(10000)) {
+                    $settings.Kill($true)
+                    Assert-True ($settings.WaitForExit(10000)) 'Owned settings process did not exit'
+                }
+            }
+        } finally {
+            try { [SmokeWindow]::SetSaverActive($wasActive) } finally {
+                foreach ($name in $snapshot.Keys) {
+                    if ($null -eq $snapshot[$name]) { $key.DeleteValue($name, $false) }
+                    else { $key.SetValue($name, $snapshot[$name].Value, $snapshot[$name].Kind) }
+                }
+            }
+            foreach ($name in $snapshot.Keys) {
+                if ($null -eq $snapshot[$name]) {
+                    Assert-True ($key.GetValueNames() -notcontains $name) "Policy value unexpectedly exists after restore: $name"
+                } else {
+                    Assert-True ($key.GetValueKind($name) -eq $snapshot[$name].Kind) "Policy type changed: $name"
+                    $restored = $key.GetValue($name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                    Assert-True (($restored | ConvertTo-Json -Compress) -ceq ($snapshot[$name].Value | ConvertTo-Json -Compress)) "Policy value changed: $name"
+                }
+            }
+            $key.Dispose()
+        }
+    }
+}
 function Assert-Machine([string]$File, [int]$Machine) {
     $bytes = [IO.File]::ReadAllBytes($File)
     Assert-True ($bytes.Length -gt 256 -and $bytes[0] -eq 77 -and $bytes[1] -eq 90) "Invalid PE: $File"
@@ -164,6 +236,7 @@ function Check-SetupGuide([string]$SetupFile, [bool]$Russian, [string]$Concurren
     [SmokeWindow]::ClickInstallerButton($wizard, 1)
     $wizard = Wait-SetupPage $setup $text.select @($text.selectButton) 240
     foreach ($preview in $activePreviews) { Wait-Native $preview 10 }
+    if ($CheckUpdate) { Check-SaverSelection $wizard $text.selectButton $setup.Id }
     Assert-True (-not [SmokeWindow]::ButtonEnabled($wizard, 3)) 'The first guide page must not return to the installation section'
     [SmokeWindow]::ClickInstallerButton($wizard, 1)
     $wizard = Wait-SetupPage $setup $text.interval @($text.settings, $text.apply)
@@ -221,6 +294,15 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 public static class SmokeWindow {
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    static extern uint GetLongPathNameW(string shortPath, StringBuilder longPath, uint size);
+    public static string LongPath(string path) {
+        var buffer = new StringBuilder(32768);
+        uint length = GetLongPathNameW(path, buffer, (uint)buffer.Capacity);
+        if(length == 0) throw new System.ComponentModel.Win32Exception();
+        if(length >= buffer.Capacity) throw new InvalidOperationException("Expanded saver path exceeds buffer");
+        return buffer.ToString();
+    }
     [DllImport("kernel32.dll")] public static extern ushort GetUserDefaultUILanguage();
     [StructLayout(LayoutKind.Sequential)] public struct Message { public IntPtr hwnd; public uint msg; public UIntPtr wp; public IntPtr lp; public uint time; public int x, y; public uint extra; }
     [DllImport("user32.dll")] static extern int GetMessageW(out Message message, IntPtr window, uint min, uint max);
@@ -260,6 +342,7 @@ public static class SmokeWindow {
     [DllImport("user32.dll")] static extern bool IsWindowEnabled(IntPtr window);
     [DllImport("user32.dll")] static extern IntPtr GetDlgItem(IntPtr window, int id);
     [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr window);
+    [DllImport("user32.dll")] static extern IntPtr GetParent(IntPtr window);
     [DllImport("user32.dll")] static extern bool PostMessageW(IntPtr window, uint message, UIntPtr wp, IntPtr lp);
     [DllImport("user32.dll", EntryPoint="SendMessageTimeoutW", CharSet=CharSet.Unicode)]
     static extern IntPtr ReadText(IntPtr window, uint message, UIntPtr wp, StringBuilder text, uint flags, uint timeout, out UIntPtr result);
@@ -343,6 +426,58 @@ public static class SmokeWindow {
     public static void ClickInstallerButton(IntPtr parent, int id) {
         if(!ButtonEnabled(parent, id) || !PostMessageW(parent, 0x111, (UIntPtr)id, GetDlgItem(parent, id)))
             throw new InvalidOperationException("Installer button unavailable: " + id);
+    }
+    [DllImport("user32.dll", EntryPoint="SystemParametersInfoW", SetLastError=true)]
+    static extern bool GetSystemParameter(uint action, uint param, [MarshalAs(UnmanagedType.Bool)] out bool value, uint flags);
+    [DllImport("user32.dll", EntryPoint="SystemParametersInfoW", SetLastError=true)]
+    static extern bool SetSystemParameter(uint action, uint param, IntPtr value, uint flags);
+    public static bool SaverActive() {
+        bool active;
+        if(!GetSystemParameter(0x10, 0, out active, 0)) throw new System.ComponentModel.Win32Exception();
+        return active;
+    }
+    public static void SetSaverActive(bool active) {
+        if(!SetSystemParameter(0x11, active ? 1u : 0u, IntPtr.Zero, 0)) throw new System.ComponentModel.Win32Exception();
+    }
+    public static void ClickNamedButton(IntPtr parent, string title) {
+        IntPtr found = IntPtr.Zero;
+        int count = 0;
+        EnumChildWindows(parent, (child, unused) => {
+            var cls = new StringBuilder(128); GetClassNameW(child, cls, 128);
+            if(cls.ToString() == "Button" && IsWindowVisible(child) && IsWindowEnabled(child) && Text(child) == title) {
+                found = child; count++;
+            }
+            return true;
+        }, IntPtr.Zero);
+        if(count != 1) throw new InvalidOperationException("Expected one installer button: " + title);
+        ClickInstallerButton(GetParent(found), GetDlgCtrlID(found));
+    }
+    static IntPtr OnlyCombo(IntPtr parent) {
+        IntPtr found = IntPtr.Zero;
+        int count = 0;
+        EnumChildWindows(parent, (child, unused) => {
+            var cls = new StringBuilder(128); GetClassNameW(child, cls, 128);
+            if(cls.ToString() == "ComboBox" && IsWindowVisible(child)) { found = child; count++; }
+            return true;
+        }, IntPtr.Zero);
+        return count == 1 ? found : IntPtr.Zero;
+    }
+    public static IntPtr ComboWindow(uint expectedPid) {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((window, unused) => {
+            uint pid; GetWindowThreadProcessId(window, out pid);
+            if(pid == expectedPid && IsWindowVisible(window) && OnlyCombo(window) != IntPtr.Zero) {
+                found = window; return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+    // WM_GETTEXT retrieves the combo's currently displayed selection, not its list.
+    public static string ComboSelection(IntPtr parent) { return Text(OnlyCombo(parent)); }
+    public static void CloseWindow(IntPtr window) {
+        if(!PostMessageW(window, 0x10, UIntPtr.Zero, IntPtr.Zero))
+            throw new InvalidOperationException("Could not close owned settings window");
     }
     public static bool HasClockChild(IntPtr parent, uint expectedPid) {
         bool found = false;

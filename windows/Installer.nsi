@@ -521,7 +521,8 @@ FunctionEnd
 Function SelectSaver
   ClearErrors
   ${DisableX64FSRedirection}
-  Exec '"$SYSDIR\rundll32.exe" desk.cpl,InstallScreenSaver "$INSTDIR\Cool Clock.scr"'
+  ; InstallScreenSaver stores the entire trailing string, including any quotes.
+  Exec '"$SYSDIR\rundll32.exe" desk.cpl,InstallScreenSaver $INSTDIR\Cool Clock.scr'
   ${EnableX64FSRedirection}
   ${If} ${Errors}
     MessageBox MB_ICONEXCLAMATION "$(ClockSelectFailed)"
