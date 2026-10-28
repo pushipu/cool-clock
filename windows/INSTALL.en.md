@@ -2,7 +2,7 @@
 
 # Install Cool Clock for Windows
 
-[Download installer 0.9.3](https://github.com/pushipu/cool-clock/releases/download/v0.9.3/Cool-Clock-0.9.3-Windows-Setup.exe)
+[Download installer 0.9.4](https://github.com/pushipu/cool-clock/releases/download/v0.9.4/Cool-Clock-0.9.4-Windows-Setup.exe)
 
 Requires Windows 10 or 11. One installer supports Intel/AMD x64 and ARM64.
 This is a preview release; the installer is not yet digitally signed.
@@ -20,6 +20,8 @@ The installer and app use Russian when your Windows display language is Russian,
    settings or automatically check your changes.
 
 ## 1. Select Cool Clock
+
+If Windows Screen Saver Settings is already open, save any changes you want to keep and close that window first.
 
 Click **Select Cool Clock in Windows**. This button
 replaces the currently selected screensaver with Cool Clock and opens its settings.

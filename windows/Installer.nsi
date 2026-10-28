@@ -144,6 +144,8 @@ LangString ClockOpenSettingsFailed ${LANG_ENGLISH} "Open Start → Settings → 
 LangString ClockOpenSettingsFailed ${LANG_RUSSIAN} "Откройте Пуск → Параметры → Персонализация → Экран блокировки → Заставка. Выберите Cool Clock, задайте интервал и нажмите «Применить»."
 LangString ClockSelectFailed ${LANG_ENGLISH} "Could not open the Cool Clock selection. Check that $INSTDIR\Cool Clock.scr exists and reinstall if needed."
 LangString ClockSelectFailed ${LANG_RUSSIAN} "Не удалось открыть выбор Cool Clock. Проверьте, что файл $INSTDIR\Cool Clock.scr существует, и повторите установку при необходимости."
+LangString ClockSettingsAlreadyOpen ${LANG_ENGLISH} "Close the Windows Screen Saver Settings window, then click Select Cool Clock in Windows again."
+LangString ClockSettingsAlreadyOpen ${LANG_RUSSIAN} "Закройте окно параметров заставки Windows, затем снова нажмите «Выбрать Cool Clock в Windows»."
 LangString ClockOpenPowerFailed ${LANG_ENGLISH} "Open Start → Settings → System → Power. Set screen-off and sleep times longer than the screensaver wait time."
 LangString ClockOpenPowerFailed ${LANG_RUSSIAN} "Откройте Пуск → Параметры → Система → Питание. Выберите время отключения экрана и сна больше интервала заставки."
 LangString ClockUninstallIncomplete ${LANG_ENGLISH} "Uninstallation is incomplete: some files or registry entries could not be accessed. Close Cool Clock and try uninstalling again."
@@ -519,6 +521,29 @@ Function OpenSettings
 FunctionEnd
 
 Function SelectSaver
+  ; Windows reuses an open settings page without refreshing its selected saver.
+  Push $0
+  Push $1
+  Push $2
+  StrCpy $0 0
+find_settings:
+  FindWindow $0 "#32770" "" 0 $0
+  StrCmp $0 0 select_ready
+  FindWindow $1 "#32770" "" $0
+  StrCmp $1 0 find_settings
+  GetDlgItem $2 $1 1302
+  StrCmp $2 0 find_settings
+  FindWindow $2 "SSDemoParent" "" $2
+  StrCmp $2 0 find_settings
+  MessageBox MB_OK|MB_ICONINFORMATION "$(ClockSettingsAlreadyOpen)"
+  Pop $2
+  Pop $1
+  Pop $0
+  Return
+select_ready:
+  Pop $2
+  Pop $1
+  Pop $0
   ClearErrors
   ${DisableX64FSRedirection}
   ; InstallScreenSaver stores the entire trailing string, including any quotes.
