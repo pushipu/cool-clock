@@ -71,17 +71,23 @@ function Check-Render([string]$Name, [string]$Mode = '--preview') {
     Assert-True ($data.exitCode -eq 0 -and $data.views -ge 1 -and $data.readyViews -eq $data.views -and $data.errorCount -eq 0) "Render proof failed: $Name"
     $proof.stages += $Name
 }
-function Wait-SetupPage([Diagnostics.Process]$Process, [string]$Title, [string[]]$Required = @(), [int]$Seconds = 30) {
+function Wait-SetupPage([Diagnostics.Process]$Process, [string]$Title, [string[]]$Required = @(), [int]$Seconds = 30, [switch]$MessageBox) {
     $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
     $nextDiagnostic = [DateTime]::UtcNow
+    $matchText = if ($MessageBox) { '' } else { $Title }
     do {
         Assert-True (-not $Process.HasExited) "Installer exited before page: $Title"
-        $window = [SmokeWindow]::InstallerWindow($Process.Id, $Title)
-        $text = if ($window -ne [IntPtr]::Zero) { [SmokeWindow]::VisibleText($window) } else { '' }
+        $window = [SmokeWindow]::InstallerWindow($Process.Id, $matchText, [bool]$MessageBox)
+        $text = if ($window -eq [IntPtr]::Zero) { '' }
+            elseif ($MessageBox) { [SmokeWindow]::MessageBoxBody($window) }
+            else { [SmokeWindow]::VisibleText($window) }
         $proof.lastInstallerPage = $text
+        if ($MessageBox -and -not [string]::IsNullOrWhiteSpace($text)) {
+            Assert-True ($text.Contains($Title)) "Wrong initialization error language. Expected: $Title. Actual: $text"
+        }
         $complete = $text.Contains($Title)
         foreach ($expected in $Required) { $complete = $complete -and $text.Contains($expected) }
-        if ($complete -and [SmokeWindow]::ButtonEnabled($window, 1)) {
+        if ($complete -and ($MessageBox -or [SmokeWindow]::ButtonEnabled($window, 1))) {
             $proof.installerPages += [ordered]@{ title = $Title; visibleText = $text }
             return $window
         }
@@ -127,9 +133,9 @@ function Check-SetupGuide([string]$SetupFile, [bool]$Russian, [string]$Concurren
         # .onInit runs before NSIS refreshes LangString selection; check its error in the opposite language.
         $other = Start-Native $ConcurrentSetup
         $message = if ($ConcurrentRussian) { 'Установщик Cool Clock уже запущен.' } else { 'The Cool Clock installer is already running.' }
-        # This newly built 135 MB executable has not passed the runner's cold-start scan yet.
-        $dialog = Wait-SetupPage $other $message @() 120
-        [SmokeWindow]::ClickInstallerButton($dialog, 1)
+        # The first launch of this newly built EXE can delay readable dialog text.
+        $dialog = Wait-SetupPage $other $message -Seconds 120 -MessageBox
+        [SmokeWindow]::ClickOnlyDialogButton($dialog)
         Assert-True ($other.WaitForExit(10000) -and $other.ExitCode -eq 13) 'Concurrent setup must show its localized error and exit with code 13'
         $proof.stages += 'localized-initialization-error'
     }
@@ -235,6 +241,7 @@ public static class SmokeWindow {
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
     [DllImport("user32.dll")] static extern bool IsWindowEnabled(IntPtr window);
     [DllImport("user32.dll")] static extern IntPtr GetDlgItem(IntPtr window, int id);
+    [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr window);
     [DllImport("user32.dll")] static extern bool PostMessageW(IntPtr window, uint message, UIntPtr wp, IntPtr lp);
     [DllImport("user32.dll", EntryPoint="SendMessageTimeoutW", CharSet=CharSet.Unicode)]
     static extern IntPtr ReadText(IntPtr window, uint message, UIntPtr wp, StringBuilder text, uint flags, uint timeout, out UIntPtr result);
@@ -242,15 +249,45 @@ public static class SmokeWindow {
         var text = new StringBuilder(4096); UIntPtr result;
         return ReadText(window, 0xD, (UIntPtr)text.Capacity, text, 2, 200, out result) != IntPtr.Zero ? text.ToString() : "";
     }
-    public static IntPtr InstallerWindow(uint expectedPid, string expectedText) {
+    public static IntPtr InstallerWindow(uint expectedPid, string expectedText, bool messageBox) {
         IntPtr found = IntPtr.Zero;
         EnumWindows((window, unused) => {
             uint pid; GetWindowThreadProcessId(window, out pid);
-            if(pid == expectedPid && IsWindowVisible(window) && ButtonEnabled(window, 1)
+            if(pid == expectedPid && IsWindowVisible(window)
+                && (messageBox ? OnlyDialogButton(window) != IntPtr.Zero : ButtonEnabled(window, 1))
                 && VisibleText(window).Contains(expectedText)) { found = window; return false; }
             return true;
         }, IntPtr.Zero);
         return found;
+    }
+    static IntPtr OnlyDialogButton(IntPtr parent) {
+        IntPtr found = IntPtr.Zero;
+        int count = 0;
+        EnumChildWindows(parent, (child, unused) => {
+            var cls = new StringBuilder(128); GetClassNameW(child, cls, 128);
+            if(cls.ToString() == "Button" && IsWindowVisible(child) && IsWindowEnabled(child)) {
+                found = child; count++;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return count == 1 ? found : IntPtr.Zero;
+    }
+    public static void ClickOnlyDialogButton(IntPtr parent) {
+        IntPtr button = OnlyDialogButton(parent);
+        if(button == IntPtr.Zero || !PostMessageW(button, 0xF5, UIntPtr.Zero, IntPtr.Zero))
+            throw new InvalidOperationException("Expected one enabled message box button");
+    }
+    public static string MessageBoxBody(IntPtr parent) {
+        var body = new StringBuilder();
+        EnumChildWindows(parent, (child, unused) => {
+            var cls = new StringBuilder(128); GetClassNameW(child, cls, 128);
+            if(cls.ToString() == "Static" && IsWindowVisible(child)) {
+                string text = Text(child);
+                if(!String.IsNullOrWhiteSpace(text)) body.AppendLine(text);
+            }
+            return true;
+        }, IntPtr.Zero);
+        return body.ToString();
     }
     public static string DescribeWindows(uint expectedPid) {
         var all = new StringBuilder();
@@ -263,7 +300,7 @@ public static class SmokeWindow {
                     + " title=" + Text(window));
                 EnumChildWindows(window, (child, ignored) => {
                     GetClassNameW(child, cls, 128);
-                    all.AppendLine("  child=" + child.ToInt64() + " class=" + cls + " visible=" + IsWindowVisible(child)
+                    all.AppendLine("  child=" + child.ToInt64() + " id=" + GetDlgCtrlID(child) + " class=" + cls + " visible=" + IsWindowVisible(child)
                         + " enabled=" + IsWindowEnabled(child) + " text=" + Text(child));
                     return true;
                 }, IntPtr.Zero);

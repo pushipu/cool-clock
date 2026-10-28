@@ -158,7 +158,8 @@ LangString ClockUninstallIncomplete ${LANG_RUSSIAN} "Удаление не за�
   !endif
   IntOp $0 $0 & 0x3FF
   StrCpy $LANGUAGE ${LANG_ENGLISH}
-  ${If} $0 == 0x19
+  ; IntOp returns decimal text; compare numerically with the hex language ID.
+  ${If} $0 = 0x19
     StrCpy $LANGUAGE ${LANG_RUSSIAN}
   ${EndIf}
 !macroend

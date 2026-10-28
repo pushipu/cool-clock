@@ -225,6 +225,8 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         saver.autoresizingMask = [.width, .height]
         window.contentView = saver
         window.title = clockText("Cool Clock — playback check", "Cool Clock — проверка воспроизведения")
+        // Keep other apps from occluding the playback visibility test.
+        window.level = .floating
         window.center()
         window.orderFront(nil)
         defer { saver.stopAnimation(); window.orderOut(nil) }
