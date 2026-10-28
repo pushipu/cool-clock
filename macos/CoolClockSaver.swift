@@ -56,7 +56,7 @@ final class CoolClockSaverView: ScreenSaverView {
         do {
             let video = try CloudVideoPlayer(bundle: Bundle(for: CoolClockSaverView.self))
             self.video = video
-            video.onError = { [weak self] _ in self?.showError("Не удалось воспроизвести фон часов.") }
+            video.onError = { [weak self] _ in self?.showError(clockText("Could not play the clock background.", "Не удалось воспроизвести фон часов.")) }
             video.view.frame = bounds
             video.view.autoresizingMask = [.width, .height]
             addSubview(video.view)
@@ -77,7 +77,7 @@ final class CoolClockSaverView: ScreenSaverView {
         } catch {
             setupError = error
             NSLog("Cool Clock initialization failed: %@", String(describing: error))
-            showError("Cool Clock\nНе удалось загрузить видеофон.")
+            showError(clockText("Cool Clock\nCould not load the video background.", "Cool Clock\nНе удалось загрузить видеофон."))
         }
     }
     required init?(coder: NSCoder) { nil }
@@ -108,22 +108,22 @@ final class CoolClockSaverView: ScreenSaverView {
         if settingsWindow == nil {
             let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 220),
                                  styleMask: .titled, backing: .buffered, defer: false)
-            sheet.title = "Настройки Cool Clock"
+            sheet.title = clockText("Cool Clock settings", "Настройки Cool Clock")
             sheet.isReleasedWhenClosed = false
-            let title = NSTextField(labelWithString: "Звук заставки")
+            let title = NSTextField(labelWithString: clockText("Screensaver sound", "Звук заставки"))
             title.font = .boldSystemFont(ofSize: 20)
             title.frame = NSRect(x: 24, y: 166, width: 430, height: 28)
-            let checkbox = NSButton(checkboxWithTitle: "Воспроизводить звук", target: nil, action: nil)
+            let checkbox = NSButton(checkboxWithTitle: clockText("Play sound", "Воспроизводить звук"), target: nil, action: nil)
             checkbox.frame = NSRect(x: 24, y: 120, width: 430, height: 24)
             checkbox.setAccessibilityIdentifier("soundEnabled")
             let hint = NSTextField(wrappingLabelWithString: "")
             hint.font = .systemFont(ofSize: 12)
             hint.frame = NSRect(x: 44, y: 68, width: 410, height: 42)
-            let cancel = NSButton(title: "Отмена", target: self, action: #selector(cancelSettings(_:)))
+            let cancel = NSButton(title: clockText("Cancel", "Отмена"), target: self, action: #selector(cancelSettings(_:)))
             cancel.bezelStyle = .rounded
             cancel.keyEquivalent = "\u{1b}"
             cancel.frame = NSRect(x: 266, y: 20, width: 90, height: 32)
-            let save = NSButton(title: "Сохранить", target: self, action: #selector(saveSettings(_:)))
+            let save = NSButton(title: clockText("Save", "Сохранить"), target: self, action: #selector(saveSettings(_:)))
             save.bezelStyle = .rounded
             save.keyEquivalent = "\r"
             save.frame = NSRect(x: 356, y: 20, width: 100, height: 32)
@@ -135,7 +135,7 @@ final class CoolClockSaverView: ScreenSaverView {
         if settingsWindow?.sheetParent == nil {
             reloadAudioPreferences()
             soundCheckbox?.state = ClockPreferences.soundEnabled() ? .on : .off
-            settingsHint?.stringValue = "Музыка и сигналы в конце минуты.\nПо умолчанию звук выключен."
+            settingsHint?.stringValue = clockText("Music and beeps at the end of each minute.\nSound is off by default.", "Музыка и сигналы в конце минуты.\nПо умолчанию звук выключен.")
             settingsHint?.textColor = .secondaryLabelColor
         }
         return settingsWindow
@@ -143,7 +143,7 @@ final class CoolClockSaverView: ScreenSaverView {
 
     @objc private func saveSettings(_ sender: Any?) {
         guard ClockPreferences.setSoundEnabled(soundCheckbox?.state == .on) else {
-            settingsHint?.stringValue = "Не удалось сохранить настройку. Попробуйте ещё раз."
+            settingsHint?.stringValue = clockText("Could not save the setting. Try again.", "Не удалось сохранить настройку. Попробуйте ещё раз.")
             settingsHint?.textColor = .systemRed
             return
         }
@@ -164,12 +164,12 @@ final class CoolClockSaverView: ScreenSaverView {
         let muted = isAudioMuted
         guard displayedMuteState != muted else { return }
         displayedMuteState = muted
-        let status = audio == nil ? "Предпросмотр без звука" : muted ? "Звук выключен. Нажмите, чтобы включить." : "Звук включён. Нажмите, чтобы выключить."
+        let status = audio == nil ? clockText("Silent preview", "Предпросмотр без звука") : muted ? clockText("Sound is off. Click to turn it on.", "Звук выключен. Нажмите, чтобы включить.") : clockText("Sound is on. Click to turn it off.", "Звук включён. Нажмите, чтобы выключить.")
         faceView?.toolTip = status
-        audioButton?.title = muted ? "Включить звук" : "Выключить звук"
+        audioButton?.title = muted ? clockText("Turn sound on", "Включить звук") : clockText("Turn sound off", "Выключить звук")
         audioButton?.toolTip = status
         audioButton?.setAccessibilityLabel(audioButton?.title)
-        audioButton?.setAccessibilityValue(muted ? "Звук выключен" : "Звук включён")
+        audioButton?.setAccessibilityValue(muted ? clockText("Sound off", "Звук выключен") : clockText("Sound on", "Звук включён"))
     }
 
     private func showError(_ message: String) {

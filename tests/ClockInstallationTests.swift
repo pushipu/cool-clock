@@ -177,7 +177,7 @@ private final class FailingFiles: FileManager, @unchecked Sendable {
             var message = ""
             do { _ = try ClockInstallation(payload: source, home: home, fileManager: failing).install() }
             catch { message = error.localizedDescription }
-            try check(message.contains("Резервные копии сохранены"), "Recovery locations surfaced")
+            try check(message.contains(clockText("Backups retained", "Резервные копии сохранены")), "Recovery locations surfaced")
             let backups = (files.enumerator(at: home, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? []).filter { $0.lastPathComponent == "previous.bundle" }
             try check(backups.count == 1, "Failed preview rollback backup retained")
             try check(try installedVersion(backups[0]) == "0.7.1", "Original backup remains readable")

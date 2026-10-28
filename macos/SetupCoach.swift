@@ -20,7 +20,7 @@ final class SetupCoach: NSObject, NSWindowDelegate {
         self.onOpenSettings = onOpenSettings
         self.onReturn = onReturn
         super.init()
-        panel.title = "Настройка Cool Clock"
+        panel.title = clockText("Set up Cool Clock", "Настройка Cool Clock")
         panel.delegate = self
         panel.isReleasedWhenClosed = false
         panel.level = .floating
@@ -49,22 +49,23 @@ final class SetupCoach: NSObject, NSWindowDelegate {
             label.textColor = secondary ? .secondaryLabelColor : .labelColor
             stack.addArrangedSubview(label)
         }
-        label("ШАГ \(index + 1) ИЗ \(total)", size: 11, bold: true, secondary: true)
+        label(clockText("STEP \(index + 1) OF \(total)", "ШАГ \(index + 1) ИЗ \(total)"), size: 11, bold: true, secondary: true)
         label(step.title, size: 20, bold: true)
         label(step.instructions, size: 14)
         stack.addArrangedSubview(SetupGuideView(step: step, compact: true))
         label(step.footnote, size: 12, secondary: true)
-        label("Выполните шаг в настройках, затем нажмите «\(index == total - 1 ? "Готово" : "Далее")». Проверка — вручную.", size: 12, secondary: true)
+        let nextTitle = index == total - 1 ? clockText("Done", "Готово") : clockText("Next", "Далее")
+        label(clockText("Complete the step in settings, then click \(nextTitle). Check the result yourself.", "Выполните шаг в настройках, затем нажмите «\(nextTitle)». Проверка — вручную."), size: 12, secondary: true)
         for child in stack.arrangedSubviews {
             child.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
             child.setContentCompressionResistancePriority(.required, for: .vertical)
         }
-        let back = button("Назад", action: #selector(goBack))
+        let back = button(clockText("Back", "Назад"), action: #selector(goBack))
         back.isEnabled = index > 0
-        let next = button(index == total - 1 ? "Готово" : "Далее", action: #selector(goNext))
+        let next = button(nextTitle, action: #selector(goNext))
         next.keyEquivalent = "\r"
-        let open = button("Открыть настройки ещё раз", action: #selector(openSettings))
-        let exit = button("Вернуться к установке", action: #selector(returnToInstaller))
+        let open = button(clockText("Open settings again", "Открыть настройки ещё раз"), action: #selector(openSettings))
+        let exit = button(clockText("Return to installer", "Вернуться к установке"), action: #selector(returnToInstaller))
         exit.keyEquivalent = "\u{1b}"
         let navigation = NSStackView(views: [back, next])
         navigation.distribution = .fillEqually

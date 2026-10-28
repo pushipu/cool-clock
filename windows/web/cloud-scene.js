@@ -1,3 +1,5 @@
+import { createText } from './language.js';
+
 // Exact timeline and colour grading used by macOS CloudScene.swift.
 export const DURATION = 116;
 export const SOURCE_DURATION = 29;
@@ -36,10 +38,10 @@ function lut(seconds,inner) {
   return light.map(value=>[3,7,23].map((black,i)=>Math.trunc(black+clamp(value*brightness)*(white[i]-black))));
 }
 export class CloudScene {
-  constructor(tracks) {
+  constructor(tracks,language='en') {
     if (!Array.isArray(tracks)||tracks.length!==7||!tracks.every(track=>Array.isArray(track)&&track.length===6&&track.every(r=>
       Array.isArray(r)&&r.length===4&&r.every(Number.isFinite)&&r[0]>=0&&r[0]<r[2]&&r[2]<=984&&r[1]>=0&&r[1]<r[3]&&r[3]<=718))) {
-      throw new TypeError('Invalid rectangle tracks');
+      throw new TypeError(createText(language)('Invalid rectangle tracks', 'Неверные данные анимации прямоугольников'));
     }
     this.tracks=tracks.map(track=>track.map(r=>Object.freeze([...r])));
   }

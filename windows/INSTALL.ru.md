@@ -2,10 +2,12 @@
 
 # Установка Cool Clock для Windows
 
-[Скачать установщик 0.9.1](https://github.com/pushipu/cool-clock/releases/download/v0.9.1-windows-preview.1/Cool-Clock-0.9.1-Windows-Setup.exe)
+[Скачать установщик 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/Cool-Clock-0.9.2-Windows-Setup.exe)
 
 Требуется Windows 10 или 11. Один установщик подходит для Intel/AMD x64 и ARM64.
 Это предварительный выпуск; установщик пока без цифровой подписи.
+
+Установщик и приложение используют русский язык, если он выбран языком интерфейса системы. Во всех остальных случаях включается английский.
 
 ## Установка
 

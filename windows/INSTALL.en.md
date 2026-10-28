@@ -2,10 +2,12 @@
 
 # Install Cool Clock for Windows
 
-[Download installer 0.9.1](https://github.com/pushipu/cool-clock/releases/download/v0.9.1-windows-preview.1/Cool-Clock-0.9.1-Windows-Setup.exe)
+[Download installer 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/Cool-Clock-0.9.2-Windows-Setup.exe)
 
 Requires Windows 10 or 11. One installer supports Intel/AMD x64 and ARM64.
 This is a preview release; the installer is not yet digitally signed.
+
+The installer and app use Russian when your Windows display language is Russian, and English otherwise.
 
 ## Installation
 
@@ -14,12 +16,12 @@ This is a preview release; the installer is not yet digitally signed.
 2. Wait for installation to finish. If Microsoft WebView2 Runtime is needed, the wizard
    downloads it from Microsoft; this requires an internet connection.
 3. Follow the four setup steps. The wizard's buttons open Windows settings,
-   and highlighted rows show what to select. **"Далее" (Next)** does not save Windows
+   and highlighted rows show what to select. **Next** does not save Windows
    settings or automatically check your changes.
 
 ## 1. Select Cool Clock
 
-Click **"Выбрать Cool Clock в Windows" (Select Cool Clock in Windows)**. This button
+Click **Select Cool Clock in Windows**. This button
 replaces the currently selected screensaver with Cool Clock and opens its settings.
 Check the **Screen saver** field. Click **Settings…** to change the sound setting.
 
@@ -35,7 +37,7 @@ the wizard does not change it.
 
 ## 3. Check screen and sleep timers
 
-Click **"Открыть параметры питания" (Open power settings)**. On Windows 11, this opens
+Click **Open power settings**. On Windows 11, this opens
 **System → Power & battery** or **Power**; on Windows 10, **System → Power & sleep**.
 
 The screen-off and sleep timers must be longer than the screensaver's wait time.

@@ -2,8 +2,11 @@ import { CloudScene, wrap } from './cloud-scene.js';
 import { createCloudRenderer } from './cloud-renderer.js';
 import { createDial } from './dial.js';
 import { createFatalErrorHandler } from './fatal-error.js';
+import { languageFromTag, createText } from './language.js';
 
 const query=new URLSearchParams(location.search);
+const language=languageFromTag(query.get('lang')),text=createText(language);
+document.documentElement.lang=language;
 // Deterministic local visual checks; never enabled by the screensaver host.
 const testTime=query.has('testTime')&&Number.isFinite(Number(query.get('testTime')))?wrap(Number(query.get('testTime'))):null;
 const testClockTime=query.has('testClockTime')&&Number.isFinite(Number(query.get('testClockTime')))?Number(query.get('testClockTime')):8*3600+58*60+22.12+(testTime??0);
@@ -13,7 +16,7 @@ document.body.dataset.mode=mode;
 const bridge=window.chrome?.webview;
 const post=message=>{if(['ready','exit','sound:on','sound:off','error'].includes(message))bridge?.postMessage(message);};
 const errorElement=document.querySelector('#error');
-const diagnostics={mode,ready:false,fatal:false,paused:true,sound,backgroundFrames:0,dialFrames:0,videoFrames:[0,0,0],textureUploads:[0,0,0],seekCounts:[0,0,0],audioSeeks:0,errors:[]};
+const diagnostics={mode,language,ready:false,fatal:false,paused:true,sound,backgroundFrames:0,dialFrames:0,videoFrames:[0,0,0],textureUploads:[0,0,0],seekCounts:[0,0,0],audioSeeks:0,errors:[]};
 Object.defineProperty(window,'__clockDiagnostics',{get:()=>Object.freeze({...diagnostics,videoFrames:Object.freeze([...diagnostics.videoFrames]),textureUploads:Object.freeze([...diagnostics.textureUploads]),seekCounts:Object.freeze([...diagnostics.seekCounts]),errors:Object.freeze([...diagnostics.errors])})});
 function showError(message){diagnostics.errors.push(String(message));errorElement.textContent=String(message);errorElement.hidden=false;}
 const failure=createFatalErrorHandler({
@@ -35,10 +38,10 @@ const offsets=[0,7,13];
 const audio=document.createElement('audio');audio.src='assets/audio/clock-minute.wav';audio.loop=true;audio.preload='auto';audio.volume=sound?1:0;document.body.append(audio);
 let audioReady=false;
 audio.addEventListener('loadedmetadata',()=>{
-  if(Math.abs(audio.duration-60)>.02){fail('Минутная аудиодорожка повреждена.');return;}
+  if(Math.abs(audio.duration-60)>.02){fail(text('The minute audio track is damaged.', 'Минутная аудиодорожка повреждена.'));return;}
   audioReady=true;if(running)startAudio(generation);
 });
-audio.addEventListener('error',()=>fail('Не удалось загрузить минутную аудиодорожку.'));
+audio.addEventListener('error',()=>fail(text('Could not load the minute audio track.', 'Не удалось загрузить минутную аудиодорожку.')));
 async function startAudio(token){
   if(!audioReady||!running)return;
   audio.currentTime=localTime()%60;diagnostics.audioSeeks++;
@@ -47,8 +50,8 @@ async function startAudio(token){
     if(token!==generation||error.name==='AbortError')return;
     if(error.name==='NotAllowedError'){
       // A standalone browser may require a click; the native host grants autoplay.
-      if(sound){setSound(false,true);showError('Браузер заблокировал звук. Нажмите на часы, чтобы включить его.');}
-    }else fail('Не удалось воспроизвести минутную аудиодорожку.');
+      if(sound){setSound(false,true);showError(text('The browser blocked sound. Click the clock to enable it.', 'Браузер заблокировал звук. Нажмите на часы, чтобы включить его.'));}
+    }else fail(text('Could not play the minute audio track.', 'Не удалось воспроизвести минутную аудиодорожку.'));
   }
 }
 function setSound(enabled,notify=false){
@@ -76,7 +79,7 @@ function setRunning(){
   const token=generation;
   videos.forEach((video,i)=>{
     video.currentTime=(animationElapsed+offsets[i])%29;diagnostics.seekCounts[i]++;requestVideo(i);
-    video.play().then(()=>{if(!running)video.pause();}).catch(error=>{if(token===generation&&error.name!=='AbortError')fail('Не удалось воспроизвести видео облаков.');});
+    video.play().then(()=>{if(!running)video.pause();}).catch(error=>{if(token===generation&&error.name!=='AbortError')fail(text('Could not play the cloud video.', 'Не удалось воспроизвести видео облаков.'));});
   });
   startAudio(token);raf=requestAnimationFrame(render);
 }
@@ -106,7 +109,7 @@ function resize(){
   lastBackground=lastDial=-Infinity;
 }
 new ResizeObserver(resize).observe(document.documentElement);
-background.addEventListener('webglcontextlost',event=>{event.preventDefault();hostPaused=true;setRunning();fail('Графический контекст потерян. Перезапустите заставку.');});
+background.addEventListener('webglcontextlost',event=>{event.preventDefault();hostPaused=true;setRunning();fail(text('The graphics context was lost. Restart the screensaver.', 'Графический контекст потерян. Перезапустите заставку.'));});
 function render(now){
   if(!running)return;
   try{
@@ -138,24 +141,24 @@ function render(now){
 }
 async function loadVideo(path,index){
   const video=document.createElement('video');video.muted=true;video.loop=true;video.playsInline=true;video.preload='auto';videos[index]=video;document.body.append(video);
-  video.addEventListener('error',()=>fail(`Не удалось загрузить видео облаков ${index+1}.`));
-  await new Promise((resolve,reject)=>{video.addEventListener('loadedmetadata',resolve,{once:true});video.addEventListener('error',()=>reject(new Error(`Видео ${index+1} недоступно.`)),{once:true});video.src=path;});
-  if(Math.abs(video.duration-29)>.1||video.videoWidth===0)throw new Error(`Неверный формат видео ${index+1}.`);
+  video.addEventListener('error',()=>fail(text(`Could not load cloud video ${index+1}.`, `Не удалось загрузить видео облаков ${index+1}.`)));
+  await new Promise((resolve,reject)=>{video.addEventListener('loadedmetadata',resolve,{once:true});video.addEventListener('error',()=>reject(new Error(text(`Video ${index+1} is unavailable.`, `Видео ${index+1} недоступно.`))),{once:true});video.src=path;});
+  if(Math.abs(video.duration-29)>.1||video.videoWidth===0)throw new Error(text(`Video ${index+1} has an invalid format.`, `Неверный формат видео ${index+1}.`));
 }
 try{
-  const response=await fetch('assets/rectangle-tracks.json');if(!response.ok)throw new Error('Не удалось загрузить анимацию прямоугольников.');
-  scene=new CloudScene(await response.json());renderer=createCloudRenderer(background);drawDial=createDial(dialCanvas,testTime!==null&&query.get('testReference')==='1');resize();
+  const response=await fetch('assets/rectangle-tracks.json');if(!response.ok)throw new Error(text('Could not load the rectangle animation.', 'Не удалось загрузить анимацию прямоугольников.'));
+  scene=new CloudScene(await response.json(),language);renderer=createCloudRenderer(background,language);drawDial=createDial(dialCanvas,testTime!==null&&query.get('testReference')==='1');resize();
   await Promise.all(['assets/cloud-swift.mp4','assets/cloud-cirrus.mp4','assets/cloud-swift.mp4'].map(loadVideo));
-  if(failure.failed)throw new Error('Инициализация остановлена после ошибки.');
+  if(failure.failed)throw new Error(text('Initialization stopped after an error.', 'Инициализация остановлена после ошибки.'));
   if(testTime!==null){
     await Promise.all(videos.map((video,i)=>new Promise((resolve,reject)=>{
       const target=(testTime+offsets[i])%29;
       video.addEventListener('seeked',resolve,{once:true});
-      video.addEventListener('error',()=>reject(new Error('Не удалось получить контрольный кадр.')),{once:true});
+      video.addEventListener('error',()=>reject(new Error(text('Could not capture the reference frame.', 'Не удалось получить контрольный кадр.'))),{once:true});
       // A nonzero seek also handles the first frame of a source at time zero.
       video.currentTime=target===0?.000001:target;diagnostics.seekCounts[i]++;
     })));
-    if(failure.failed)throw new Error('Контрольный кадр остановлен после ошибки.');
+    if(failure.failed)throw new Error(text('Reference capture stopped after an error.', 'Контрольный кадр остановлен после ошибки.'));
     videos.forEach((video,i)=>{renderer.upload(i,video);diagnostics.textureUploads[i]++;diagnostics.videoFrames[i]++;});
     renderer.draw(scene.frameAt(testTime));drawDial(testClockTime,testClockTime,testTime);
     diagnostics.backgroundFrames++;diagnostics.dialFrames++;diagnostics.ready=true;post('ready');

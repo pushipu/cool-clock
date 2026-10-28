@@ -10,12 +10,14 @@
 
 | Система | Установщик | Как настроить |
 | --- | --- | --- |
-| macOS 12 и новее, Apple Silicon и Intel | [Скачать для Mac · 0.8.2](https://github.com/pushipu/cool-clock/releases/download/v0.8.2/Cool-Clock-0.8.2-macOS.dmg) | [Инструкция для macOS](docs/INSTALL.md) |
-| Windows 10/11, Intel/AMD x64 и ARM64 | [Скачать для Windows · 0.9.1](https://github.com/pushipu/cool-clock/releases/download/v0.9.1-windows-preview.1/Cool-Clock-0.9.1-Windows-Setup.exe) | [Инструкция для Windows](windows/INSTALL.ru.md) |
+| macOS 12 и новее, Apple Silicon и Intel | [Скачать для Mac · 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/Cool-Clock-0.9.2-macOS.dmg) | [Инструкция для macOS](docs/INSTALL.md) |
+| Windows 10/11, Intel/AMD x64 и ARM64 | [Скачать для Windows · 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/Cool-Clock-0.9.2-Windows-Setup.exe) | [Инструкция для Windows](windows/INSTALL.ru.md) |
 
-Оба выпуска предварительные. В Windows ещё нужно проверить автоматический запуск и работу после блокировки на обычных ПК. Установщики пока без сертификата издателя, поэтому система может предупредить при первом открытии.
+Это предварительный выпуск. В Windows ещё нужно проверить автоматический запуск и работу после блокировки на обычных ПК. Установщики пока без сертификата издателя, поэтому система может предупредить при первом открытии.
 
 ## Установка и звук
+
+Язык интерфейса выбирается по системе: русский для русской локали, английский для остальных.
 
 Запустите установщик и выберите, нужен ли звук. Затем мастер покажет, где включить Cool Clock системной заставкой и задать время запуска.
 

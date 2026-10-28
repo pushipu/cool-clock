@@ -11,7 +11,7 @@ final class SetupGuideView: NSView {
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
 
-        let caption = NSTextField(wrappingLabelWithString: "Схема настройки • вид зависит от версии macOS")
+        let caption = NSTextField(wrappingLabelWithString: clockText("Settings illustration • appearance varies by macOS version", "Схема настройки • вид зависит от версии macOS"))
         caption.font = .systemFont(ofSize: compact ? 11 : 12)
         caption.textColor = .secondaryLabelColor
         let breadcrumb = NSTextField(wrappingLabelWithString: step.path)
@@ -37,8 +37,9 @@ final class SetupGuideView: NSView {
         ])
         setAccessibilityElement(true)
         setAccessibilityRole(.image)
-        setAccessibilityLabel("Схема настройки. \(step.path). " + step.rows.map {
-            "\($0.label): \($0.value)\($0.highlighted ? ", нужное значение" : ", оставить без изменений")"
+        setAccessibilityLabel(clockText("Settings illustration. \(step.path). ", "Схема настройки. \(step.path). ") + step.rows.map {
+            let instruction = $0.highlighted ? clockText("desired value", "нужное значение") : clockText("leave unchanged", "оставить без изменений")
+            return "\($0.label): \($0.value), \(instruction)"
         }.joined(separator: ". "))
         setAccessibilityChildren([])
     }

@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test clock-model.test.js tests/windows-scene.test.js"
+    "test": "node --test clock-model.test.js tests/windows-scene.test.js tests/windows-language.test.js"
   }
 }
