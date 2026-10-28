@@ -73,9 +73,10 @@ function Check-Render([string]$Name, [string]$Mode = '--preview') {
 }
 function Wait-SetupPage([Diagnostics.Process]$Process, [string]$Title, [string[]]$Required = @(), [int]$Seconds = 30) {
     $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
+    $nextDiagnostic = [DateTime]::UtcNow
     do {
         Assert-True (-not $Process.HasExited) "Installer exited before page: $Title"
-        $window = [SmokeWindow]::InstallerWindow($Process.Id)
+        $window = [SmokeWindow]::InstallerWindow($Process.Id, $Title)
         $text = if ($window -ne [IntPtr]::Zero) { [SmokeWindow]::VisibleText($window) } else { '' }
         $proof.lastInstallerPage = $text
         $complete = $text.Contains($Title)
@@ -84,13 +85,23 @@ function Wait-SetupPage([Diagnostics.Process]$Process, [string]$Title, [string[]
             $proof.installerPages += [ordered]@{ title = $Title; visibleText = $text }
             return $window
         }
+        if ([DateTime]::UtcNow -ge $nextDiagnostic) {
+            $Process.Refresh()
+            $proof.lastInstallerWindowState = [ordered]@{
+                expectedTitle = $Title; pid = $Process.Id
+                mainWindow = $Process.MainWindowHandle.ToInt64()
+                windows = [SmokeWindow]::DescribeWindows($Process.Id)
+            }
+            Write-Host ("Waiting for installer page: " + ($proof.lastInstallerWindowState | ConvertTo-Json -Compress))
+            $nextDiagnostic = [DateTime]::UtcNow.AddSeconds(10)
+        }
         Start-Sleep -Milliseconds 200
     } while ([DateTime]::UtcNow -lt $deadline)
     throw "Installer page timed out: $Title. Last visible text: $text"
 }
 
 
-function Check-SetupGuide([string]$SetupFile, [bool]$Russian, [string]$ConcurrentSetup = '', [bool]$ConcurrentRussian = $false) {
+function Check-SetupGuide([string]$SetupFile, [bool]$Russian, [string]$ConcurrentSetup = '', [bool]$ConcurrentRussian = $false, [Diagnostics.Process[]]$ActivePreviews = @()) {
     $text = if ($Russian) {
         @{
             welcome = 'Вас приветствует мастер установки'; sound = 'Звук заставки'
@@ -116,13 +127,17 @@ function Check-SetupGuide([string]$SetupFile, [bool]$Russian, [string]$Concurren
         # .onInit runs before NSIS refreshes LangString selection; check its error in the opposite language.
         $other = Start-Native $ConcurrentSetup
         $message = if ($ConcurrentRussian) { 'Установщик Cool Clock уже запущен.' } else { 'The Cool Clock installer is already running.' }
-        $dialog = Wait-SetupPage $other $message
+        # This newly built 135 MB executable has not passed the runner's cold-start scan yet.
+        $dialog = Wait-SetupPage $other $message @() 120
         [SmokeWindow]::ClickInstallerButton($dialog, 1)
         Assert-True ($other.WaitForExit(10000) -and $other.ExitCode -eq 13) 'Concurrent setup must show its localized error and exit with code 13'
         $proof.stages += 'localized-initialization-error'
     }
     [SmokeWindow]::ClickInstallerButton($wizard, 1)
     $wizard = Wait-SetupPage $setup $text.sound @($text.enableSound)
+    foreach ($preview in $ActivePreviews) {
+        Assert-True (-not $preview.HasExited) 'Update test requires running previews immediately before installation'
+    }
     [SmokeWindow]::ClickInstallerButton($wizard, 1)
     $wizard = Wait-SetupPage $setup $text.select @($text.selectButton) 240
     Assert-True (-not [SmokeWindow]::ButtonEnabled($wizard, 3)) 'The first guide page must not return to the installation section'
@@ -227,17 +242,35 @@ public static class SmokeWindow {
         var text = new StringBuilder(4096); UIntPtr result;
         return ReadText(window, 0xD, (UIntPtr)text.Capacity, text, 2, 200, out result) != IntPtr.Zero ? text.ToString() : "";
     }
-    public static IntPtr InstallerWindow(uint expectedPid) {
+    public static IntPtr InstallerWindow(uint expectedPid, string expectedText) {
         IntPtr found = IntPtr.Zero;
         EnumWindows((window, unused) => {
             uint pid; GetWindowThreadProcessId(window, out pid);
-            if(pid == expectedPid && IsWindowVisible(window) && GetDlgItem(window, 1) != IntPtr.Zero) {
-                var cls = new StringBuilder(128); GetClassNameW(window, cls, 128);
-                if(cls.ToString() == "#32770") { found = window; return false; }
-            }
+            if(pid == expectedPid && IsWindowVisible(window) && ButtonEnabled(window, 1)
+                && VisibleText(window).Contains(expectedText)) { found = window; return false; }
             return true;
         }, IntPtr.Zero);
         return found;
+    }
+    public static string DescribeWindows(uint expectedPid) {
+        var all = new StringBuilder();
+        EnumWindows((window, unused) => {
+            uint pid; GetWindowThreadProcessId(window, out pid);
+            if(pid == expectedPid) {
+                var cls = new StringBuilder(128); GetClassNameW(window, cls, 128);
+                all.AppendLine("HWND=" + window.ToInt64() + " class=" + cls + " visible=" + IsWindowVisible(window)
+                    + " enabled=" + IsWindowEnabled(window) + " button1=" + GetDlgItem(window, 1).ToInt64()
+                    + " title=" + Text(window));
+                EnumChildWindows(window, (child, ignored) => {
+                    GetClassNameW(child, cls, 128);
+                    all.AppendLine("  child=" + child.ToInt64() + " class=" + cls + " visible=" + IsWindowVisible(child)
+                        + " enabled=" + IsWindowEnabled(child) + " text=" + Text(child));
+                    return true;
+                }, IntPtr.Zero);
+            }
+            return true;
+        }, IntPtr.Zero);
+        return all.ToString();
     }
     public static string VisibleText(IntPtr parent) {
         var all = new StringBuilder();
@@ -270,19 +303,6 @@ public static class SmokeWindow {
     $parentWindow = [SmokeWindow]::Start()
     Assert-True ($parentWindow -ne [IntPtr]::Zero) 'Cannot create embedded preview parent'
     Check-Render 'embedded-render' ("/p:" + $parentWindow.ToInt64().ToString())
-    $embedded = Start-Native $saver @('/p', $parentWindow.ToInt64().ToString(), '--smoke-report', (Join-Path $evidence 'embedded-update.json'), '--seconds', '120')
-    $active = Start-Native $saver @('--preview', '--smoke-report', (Join-Path $evidence 'update-preview.json'), '--seconds', '120')
-    $deadline = [DateTime]::UtcNow.AddSeconds(20)
-    do {
-        Start-Sleep -Milliseconds 200
-        Assert-True (-not $embedded.HasExited -and -not $active.HasExited) 'Preview exited before update'
-        $hasChild = [SmokeWindow]::HasClockChild($parentWindow, $embedded.Id)
-        $active.Refresh()
-    } until (($hasChild -and $active.MainWindowHandle -ne 0) -or [DateTime]::UtcNow -gt $deadline)
-    Assert-True $hasChild 'No embedded CoolClock child HWND appeared'
-    Assert-True ($active.MainWindowHandle -ne 0) 'No active preview window appeared'
-    # Exercise the installed UI flow on the disposable runner without selecting a saver or changing its timer.
-    $proof.installerPages = @()
     $systemRussian = ([SmokeWindow]::GetUserDefaultUILanguage() -band 0x3ff) -eq 0x19
     $proof.systemUILanguage = [SmokeWindow]::GetUserDefaultUILanguage()
     $dependencies = Get-Content -Raw (Join-Path $root 'windows/dependencies.json') | ConvertFrom-Json
@@ -300,7 +320,20 @@ public static class SmokeWindow {
         & $makensis '-V3' '-NOCD' '-INPUTCHARSET' 'UTF8' "-DPAYLOAD_DIR=$(Join-Path $root 'build/windows')" "-DOUTPUT_FILE=$languageSetup" "-DVERSION=$version" "-DCOOL_CLOCK_TEST_UI_LANGUAGE=$testLanguage" (Join-Path $root 'windows/Installer.nsi') 2>&1 | Tee-Object (Join-Path $evidence 'language-installer-build.log')
         Assert-True ($LASTEXITCODE -eq 0) 'Could not build the test-only installer language variant'
     } finally { $env:NSISDIR = $oldNSIS }
-    Check-SetupGuide $setups[0].FullName $systemRussian $languageSetup (-not $systemRussian)
+    $embedded = Start-Native $saver @('/p', $parentWindow.ToInt64().ToString(), '--smoke-report', (Join-Path $evidence 'embedded-update.json'), '--seconds', '300')
+    $active = Start-Native $saver @('--preview', '--smoke-report', (Join-Path $evidence 'update-preview.json'), '--seconds', '300')
+    $deadline = [DateTime]::UtcNow.AddSeconds(20)
+    do {
+        Start-Sleep -Milliseconds 200
+        Assert-True (-not $embedded.HasExited -and -not $active.HasExited) 'Preview exited before update'
+        $hasChild = [SmokeWindow]::HasClockChild($parentWindow, $embedded.Id)
+        $active.Refresh()
+    } until (($hasChild -and $active.MainWindowHandle -ne 0) -or [DateTime]::UtcNow -gt $deadline)
+    Assert-True $hasChild 'No embedded CoolClock child HWND appeared'
+    Assert-True ($active.MainWindowHandle -ne 0) 'No active preview window appeared'
+    # Exercise the installed UI flow on the disposable runner without selecting a saver or changing its timer.
+    $proof.installerPages = @()
+    Check-SetupGuide $setups[0].FullName $systemRussian $languageSetup (-not $systemRussian) @($embedded, $active)
     Check-SetupGuide $languageSetup (-not $systemRussian)
     Remove-Item $languageSetup
     Wait-Native $embedded 10
