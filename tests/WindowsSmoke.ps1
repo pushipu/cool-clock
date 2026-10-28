@@ -55,9 +55,22 @@ function Desktop-Policy {
         return $result | ConvertTo-Json -Compress
     } finally { if ($key) { $key.Dispose() } }
 }
+function Assert-SaverSelection($Key, [IntPtr]$SettingsWindow, [string]$Phase) {
+    $selectedPath = $key.GetValue('SCRNSAVE.EXE', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+    $selection = [SmokeWindow]::ComboSelection($settingsWindow)
+    $entry = @{ phase = $Phase; path = $selectedPath; displayedSelection = $selection; policy = (Desktop-Policy | ConvertFrom-Json) }
+    $proof.saverSelectionHistory += $entry
+    Assert-True ($selectedPath -is [string] -and -not $selectedPath.Contains('"')) "Selected saver path contains literal quotes or is missing: $selectedPath"
+    Assert-True ([IO.File]::Exists($selectedPath)) "Selected saver file does not exist: $selectedPath"
+    # InstallScreenSaver may store a valid 8.3 path. Compare its expanded identity.
+    $longPath = [SmokeWindow]::LongPath($selectedPath)
+    $entry.expandedPath = $longPath
+    Assert-True ([string]::Equals($longPath, [IO.Path]::GetFullPath($saver), [StringComparison]::OrdinalIgnoreCase)) "Selected saver is not the installed file: $selectedPath"
+    Assert-True ($selection -ceq 'Cool Clock') "Screen Saver Settings did not select Cool Clock: $selection"
+}
 # This action is exercised only on the disposable CI runner. Restore exact registry
 # values and kinds before the existing installer policy invariance checks.
-function Check-SaverSelection([IntPtr]$Wizard, [string]$ButtonText, [int]$SetupId) {
+function Check-SaverSelection([IntPtr]$Wizard, [string]$ButtonText, [int]$SetupId, [scriptblock]$FinishGuide) {
     $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Control Panel\Desktop', $true)
     $snapshot = @{}
     $wasActive = [SmokeWindow]::SaverActive()
@@ -87,16 +100,26 @@ function Check-SaverSelection([IntPtr]$Wizard, [string]$ButtonText, [int]$SetupI
             Start-Sleep -Milliseconds 200
         } while ([DateTime]::UtcNow -lt $deadline)
         Assert-True ($settingsWindow -ne [IntPtr]::Zero) 'Select saver did not open its own Screen Saver Settings window'
-        $selectedPath = $key.GetValue('SCRNSAVE.EXE', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
-        $selection = [SmokeWindow]::ComboSelection($settingsWindow)
-        $proof.saverSelection = @{ path = $selectedPath; displayedSelection = $selection }
-        Assert-True ($selectedPath -is [string] -and -not $selectedPath.Contains('"')) "Selected saver path contains literal quotes or is missing: $selectedPath"
-        Assert-True ([IO.File]::Exists($selectedPath)) "Selected saver file does not exist: $selectedPath"
-        # InstallScreenSaver may store a valid 8.3 path. Compare its expanded identity.
-        $longPath = [SmokeWindow]::LongPath($selectedPath)
-        $proof.saverSelection.expandedPath = $longPath
-        Assert-True ([string]::Equals($longPath, [IO.Path]::GetFullPath($saver), [StringComparison]::OrdinalIgnoreCase)) "Selected saver is not the installed file: $selectedPath"
-        Assert-True ($selection -ceq 'Cool Clock') "Screen Saver Settings did not select Cool Clock: $selection"
+        $proof.saverSelectionHistory = @()
+        Assert-SaverSelection $key $settingsWindow 'selected-before-ok'
+        [SmokeWindow]::ClickInstallerButton($settingsWindow, 1)
+        Wait-Native $settings 30
+        $settingsWindow = [IntPtr]::Zero
+        $proof.policyAfterSettingsOK = Desktop-Policy | ConvertFrom-Json
+        & $FinishGuide
+        $proof.policyAfterInstallerExit = Desktop-Policy | ConvertFrom-Json
+        # Reopen the ordinary settings entry point after the installer has exited.
+        $settings = Start-Native (Join-Path $env:WINDIR 'System32\rundll32.exe') @('shell32.dll,Control_RunDLL', 'desk.cpl,,1')
+        $deadline = [DateTime]::UtcNow.AddSeconds(30)
+        do {
+            Assert-True (-not $settings.HasExited) 'Reopened Screen Saver Settings exited before showing its combo'
+            $settingsWindow = [SmokeWindow]::ComboWindow($settings.Id)
+            if ($settingsWindow -ne [IntPtr]::Zero) { break }
+            Start-Sleep -Milliseconds 200
+        } while ([DateTime]::UtcNow -lt $deadline)
+        Assert-True ($settingsWindow -ne [IntPtr]::Zero) 'Ordinary Screen Saver Settings did not open after installer exit'
+        Assert-SaverSelection $key $settingsWindow 'reopened-after-installer-exit'
+        $proof.stages += 'saver-selection-persists-after-ok-and-installer-exit'
         $proof.stages += 'installer-selects-saver-in-windows-settings'
     } finally {
         try {
@@ -236,23 +259,26 @@ function Check-SetupGuide([string]$SetupFile, [bool]$Russian, [string]$Concurren
     [SmokeWindow]::ClickInstallerButton($wizard, 1)
     $wizard = Wait-SetupPage $setup $text.select @($text.selectButton) 240
     foreach ($preview in $activePreviews) { Wait-Native $preview 10 }
-    if ($CheckUpdate) { Check-SaverSelection $wizard $text.selectButton $setup.Id }
-    Assert-True (-not [SmokeWindow]::ButtonEnabled($wizard, 3)) 'The first guide page must not return to the installation section'
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup $text.interval @($text.settings, $text.apply)
-    [SmokeWindow]::ClickInstallerButton($wizard, 3)
-    $wizard = Wait-SetupPage $setup $text.select @($text.selectButton)
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup $text.interval @($text.settings, $text.apply)
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup $text.power @($text.powerButton)
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup $text.check @($text.settings, $text.preview)
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup $text.finish
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    Wait-Native $setup 30
-    $proof.stages += if ($Russian) { 'russian-installer-guide' } else { 'english-installer-guide' }
+    $finishGuide = {
+        Assert-True (-not [SmokeWindow]::ButtonEnabled($wizard, 3)) 'The first guide page must not return to the installation section'
+        [SmokeWindow]::ClickInstallerButton($wizard, 1)
+        $wizard = Wait-SetupPage $setup $text.interval @($text.settings, $text.apply)
+        [SmokeWindow]::ClickInstallerButton($wizard, 3)
+        $wizard = Wait-SetupPage $setup $text.select @($text.selectButton)
+        [SmokeWindow]::ClickInstallerButton($wizard, 1)
+        $wizard = Wait-SetupPage $setup $text.interval @($text.settings, $text.apply)
+        [SmokeWindow]::ClickInstallerButton($wizard, 1)
+        $wizard = Wait-SetupPage $setup $text.power @($text.powerButton)
+        [SmokeWindow]::ClickInstallerButton($wizard, 1)
+        $wizard = Wait-SetupPage $setup $text.check @($text.settings, $text.preview)
+        [SmokeWindow]::ClickInstallerButton($wizard, 1)
+        $wizard = Wait-SetupPage $setup $text.finish
+        [SmokeWindow]::ClickInstallerButton($wizard, 1)
+        Wait-Native $setup 30
+        $proof.stages += if ($Russian) { 'russian-installer-guide' } else { 'english-installer-guide' }
+    }
+    if ($CheckUpdate) { Check-SaverSelection $wizard $text.selectButton $setup.Id $finishGuide }
+    else { & $finishGuide }
 }
 
 try {
