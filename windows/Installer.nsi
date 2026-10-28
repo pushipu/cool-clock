@@ -531,7 +531,9 @@ find_settings:
   StrCmp $0 0 select_ready
   FindWindow $1 "#32770" "" $0
   StrCmp $1 0 find_settings
-  FindWindow $2 "SSDemoParent" "" $1
+  GetDlgItem $2 $1 1302
+  StrCmp $2 0 find_settings
+  FindWindow $2 "SSDemoParent" "" $2
   StrCmp $2 0 find_settings
   MessageBox MB_OK|MB_ICONINFORMATION "$(ClockSettingsAlreadyOpen)"
   Pop $2
