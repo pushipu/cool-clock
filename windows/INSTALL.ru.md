@@ -1,3 +1,5 @@
+**RU** / [EN](INSTALL.en.md)
+
 # Установка Cool Clock для Windows
 
 [Скачать установщик 0.9.1](https://github.com/pushipu/cool-clock/releases/download/v0.9.1-windows-preview.1/Cool-Clock-0.9.1-Windows-Setup.exe)

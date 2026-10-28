@@ -1,3 +1,5 @@
+**RU** / [EN](INSTALL.en.md)
+
 # Установка Cool Clock для macOS
 
 [Скачать установщик 0.8.2](https://github.com/pushipu/cool-clock/releases/download/v0.8.2/Cool-Clock-0.8.2-macOS.dmg)
