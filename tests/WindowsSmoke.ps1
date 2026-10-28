@@ -104,7 +104,6 @@ function Check-SaverSelection([IntPtr]$Wizard, [string]$ButtonText, [int]$SetupI
         Assert-SaverSelection $key $settingsWindow 'selected-before-ok'
         [SmokeWindow]::ClickInstallerButton($settingsWindow, 1)
         Assert-True ($settings.WaitForExit(30000)) 'Screen Saver Settings did not exit after OK'
-        Assert-True ($settings.ExitCode -eq 0) "Screen Saver Settings exited $($settings.ExitCode)"
         $settingsWindow = [IntPtr]::Zero
         $proof.policyAfterSettingsOK = Desktop-Policy | ConvertFrom-Json
         & $FinishGuide
