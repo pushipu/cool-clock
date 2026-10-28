@@ -1,6 +1,8 @@
 # Cool Clock для Windows
 
-Windows-версия часов с теми же видео облаков, плавающими прямоугольниками и циферблатом, что и на Mac.
+Те самые суперстильные часы, знакомые каждому. Теперь в виде заставки для Windows.
+
+The iconic, super-stylish clock everyone knows. Now a screensaver for Windows.
 
 [Скачать установщик 0.9.1](https://github.com/pushipu/cool-clock/releases/download/v0.9.1-windows-preview.1/Cool-Clock-0.9.1-Windows-Setup.exe) · [Пошаговая инструкция](INSTALL.ru.md)
 
