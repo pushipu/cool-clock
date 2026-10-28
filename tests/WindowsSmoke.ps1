@@ -135,8 +135,10 @@ function Check-SetupGuide([string]$SetupFile, [bool]$Russian, [string]$Concurren
         $message = if ($ConcurrentRussian) { 'Установщик Cool Clock уже запущен.' } else { 'The Cool Clock installer is already running.' }
         # The first launch of this newly built EXE can delay readable dialog text.
         $dialog = Wait-SetupPage $other $message -Seconds 120 -MessageBox
+        $proof.initializationErrorWindow = [SmokeWindow]::DescribeWindows($other.Id)
         [SmokeWindow]::ClickOnlyDialogButton($dialog)
-        Assert-True ($other.WaitForExit(10000) -and $other.ExitCode -eq 13) 'Concurrent setup must show its localized error and exit with code 13'
+        Assert-True ($other.WaitForExit(10000)) 'Concurrent setup did not close after its error was dismissed'
+        Assert-True ($other.ExitCode -eq 13) "Concurrent setup exited $($other.ExitCode), expected 13"
         $proof.stages += 'localized-initialization-error'
     }
     [SmokeWindow]::ClickInstallerButton($wizard, 1)
@@ -275,8 +277,9 @@ public static class SmokeWindow {
     }
     public static void ClickOnlyDialogButton(IntPtr parent) {
         IntPtr button = OnlyDialogButton(parent);
-        if(button == IntPtr.Zero || !PostMessageW(button, 0xF5, UIntPtr.Zero, IntPtr.Zero))
+        if(button == IntPtr.Zero)
             throw new InvalidOperationException("Expected one enabled message box button");
+        ClickInstallerButton(parent, GetDlgCtrlID(button));
     }
     public static string MessageBoxBody(IntPtr parent) {
         var body = new StringBuilder();
