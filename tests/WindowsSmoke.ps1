@@ -83,7 +83,7 @@ function Wait-SetupPage([Diagnostics.Process]$Process, [string]$Title, [string[]
             else { [SmokeWindow]::VisibleText($window) }
         $proof.lastInstallerPage = $text
         if ($MessageBox -and -not [string]::IsNullOrWhiteSpace($text)) {
-            Assert-True ($text.Contains($Title)) "Wrong initialization error language. Expected: $Title. Actual: $text"
+            Assert-True ($text.Trim() -ceq $Title) "Wrong initialization error language. Expected: $Title. Actual: $text"
         }
         $complete = $text.Contains($Title)
         foreach ($expected in $Required) { $complete = $complete -and $text.Contains($expected) }
@@ -146,6 +146,7 @@ function Check-SetupGuide([string]$SetupFile, [bool]$Russian, [string]$Concurren
     }
     [SmokeWindow]::ClickInstallerButton($wizard, 1)
     $wizard = Wait-SetupPage $setup $text.select @($text.selectButton) 240
+    foreach ($preview in $ActivePreviews) { Wait-Native $preview 10 }
     Assert-True (-not [SmokeWindow]::ButtonEnabled($wizard, 3)) 'The first guide page must not return to the installation section'
     [SmokeWindow]::ClickInstallerButton($wizard, 1)
     $wizard = Wait-SetupPage $setup $text.interval @($text.settings, $text.apply)
@@ -357,8 +358,8 @@ public static class SmokeWindow {
         & $makensis '-V3' '-NOCD' '-INPUTCHARSET' 'UTF8' "-DPAYLOAD_DIR=$(Join-Path $root 'build/windows')" "-DOUTPUT_FILE=$languageSetup" "-DVERSION=$version" "-DCOOL_CLOCK_TEST_UI_LANGUAGE=$testLanguage" (Join-Path $root 'windows/Installer.nsi') 2>&1 | Tee-Object (Join-Path $evidence 'language-installer-build.log')
         Assert-True ($LASTEXITCODE -eq 0) 'Could not build the test-only installer language variant'
     } finally { $env:NSISDIR = $oldNSIS }
-    $embedded = Start-Native $saver @('/p', $parentWindow.ToInt64().ToString(), '--smoke-report', (Join-Path $evidence 'embedded-update.json'), '--seconds', '300')
-    $active = Start-Native $saver @('--preview', '--smoke-report', (Join-Path $evidence 'update-preview.json'), '--seconds', '300')
+    $embedded = Start-Native $saver @('/p', $parentWindow.ToInt64().ToString(), '--smoke-report', (Join-Path $evidence 'embedded-update.json'))
+    $active = Start-Native $saver @('--preview', '--smoke-report', (Join-Path $evidence 'update-preview.json'))
     $deadline = [DateTime]::UtcNow.AddSeconds(20)
     do {
         Start-Sleep -Milliseconds 200
@@ -373,8 +374,6 @@ public static class SmokeWindow {
     Check-SetupGuide $setups[0].FullName $systemRussian $languageSetup (-not $systemRussian) @($embedded, $active)
     Check-SetupGuide $languageSetup (-not $systemRussian)
     Remove-Item $languageSetup
-    Wait-Native $embedded 10
-    Wait-Native $active 10
     Assert-Machine $saver $machine
     Assert-True ((Desktop-Policy) -eq $beforePolicy) 'Interactive update or guide changed desktop policy without a settings action'
     $proof.stages += 'interactive-guide-four-steps-and-back-navigation'
