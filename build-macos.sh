@@ -34,7 +34,8 @@ for name, executable, identifier, kind in [
     contents = root / 'build' / name / 'Contents'
     info = {'CFBundleExecutable': executable, 'CFBundleIdentifier': identifier,
             'CFBundleName': name.rsplit('.', 1)[0], 'CFBundlePackageType': kind,
-            'CFBundleVersion': '16', 'CFBundleShortVersionString': '0.8.2',
+            'CFBundleVersion': '17', 'CFBundleShortVersionString': '0.8.3',
+            'CFBundleDevelopmentRegion': 'en', 'CFBundleLocalizations': ['en', 'ru'],
             'LSMinimumSystemVersion': '12.0', 'NSHighResolutionCapable': True,
             'CFBundleIconFile': 'ClockIcon.icns'}
     if kind == 'BNDL':
@@ -68,17 +69,17 @@ for arch in arm64 x86_64; do
     -module-cache-path "$build/ModuleCache" -module-name CoolClock -emit-library \
     -Xlinker -bundle \
     -framework AppKit -framework ScreenSaver -framework AVFoundation -framework MetalKit -framework CoreVideo \
-    macos/ClockFace.swift macos/CloudScene.swift macos/CloudRenderer.swift macos/CloudVideoPlayer.swift macos/ClockPreferences.swift macos/MinuteAudioPlayer.swift macos/CoolClockSaver.swift \
+    macos/ClockLanguage.swift macos/ClockFace.swift macos/CloudScene.swift macos/CloudRenderer.swift macos/CloudVideoPlayer.swift macos/ClockPreferences.swift macos/MinuteAudioPlayer.swift macos/CoolClockSaver.swift \
     -o "$build/objects/CoolClock-$arch"
   xcrun swiftc -swift-version 5 -O -sdk "$sdk" -target "$arch-apple-macos12.0" \
     -module-cache-path "$build/ModuleCache" -module-name CoolClockPreview \
     -framework AppKit -framework ScreenSaver -framework AVFoundation -framework MetalKit -framework CoreVideo \
-    macos/ClockFace.swift macos/CloudScene.swift macos/CloudRenderer.swift macos/CloudVideoPlayer.swift macos/ClockPreferences.swift macos/MinuteAudioPlayer.swift macos/Preview.swift \
+    macos/ClockLanguage.swift macos/ClockFace.swift macos/CloudScene.swift macos/CloudRenderer.swift macos/CloudVideoPlayer.swift macos/ClockPreferences.swift macos/MinuteAudioPlayer.swift macos/Preview.swift \
     -o "$build/objects/CoolClockPreview-$arch"
   xcrun swiftc -swift-version 5 -O -sdk "$sdk" -target "$arch-apple-macos12.0" \
     -module-cache-path "$build/ModuleCache" -module-name CoolClockInstaller \
     -framework AppKit -framework ScreenSaver \
-    macos/ClockPreferences.swift macos/ClockInstallation.swift macos/ClockSetupGuide.swift macos/SetupGuideView.swift macos/SetupCoach.swift macos/Installer.swift \
+    macos/ClockLanguage.swift macos/ClockPreferences.swift macos/ClockInstallation.swift macos/ClockSetupGuide.swift macos/SetupGuideView.swift macos/SetupCoach.swift macos/Installer.swift \
     -o "$build/objects/CoolClockInstaller-$arch"
 done
 xcrun lipo -create "$build/objects/CoolClock-arm64" "$build/objects/CoolClock-x86_64" -output "$saver/Contents/MacOS/CoolClock"

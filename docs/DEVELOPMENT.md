@@ -21,23 +21,25 @@ python3 scripts/fetch-media.py
 python3 scripts/fetch-media.py --archive /path/to/Cool-Clock-0.7.1-saver.zip
 ```
 
-Проверки модели и установщика:
+Проверки модели, выбора языка и установщика:
 
 ```sh
 npm test
 python3 -m unittest discover -s tests -p 'test_*.py'
 xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework ScreenSaver macos/ClockPreferences.swift tests/ClockPreferencesTests.swift -o build/preferences-tests
+xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache macos/ClockLanguage.swift tests/ClockLanguageTests.swift -o build/language-tests
+build/language-tests
 build/preferences-tests
-xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework ScreenSaver macos/ClockPreferences.swift macos/ClockInstallation.swift tests/ClockInstallationTests.swift -o build/installation-tests
+xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework ScreenSaver macos/ClockLanguage.swift macos/ClockPreferences.swift macos/ClockInstallation.swift tests/ClockInstallationTests.swift -o build/installation-tests
 build/installation-tests
 ```
 
 Проверки маршрутов настройки и размещения плавающей подсказки:
 
 ```sh
-xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache macos/ClockSetupGuide.swift tests/ClockSetupGuideTests.swift -o build/setup-guide-tests
+xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache macos/ClockLanguage.swift macos/ClockSetupGuide.swift tests/ClockSetupGuideTests.swift -o build/setup-guide-tests
 build/setup-guide-tests
-xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework AppKit macos/ClockSetupGuide.swift macos/SetupGuideView.swift macos/SetupCoach.swift tests/SetupCoachTests.swift -o build/setup-coach-tests
+xcrun swiftc -swift-version 5 -module-cache-path build/ModuleCache -framework AppKit macos/ClockLanguage.swift macos/ClockSetupGuide.swift macos/SetupGuideView.swift macos/SetupCoach.swift tests/SetupCoachTests.swift -o build/setup-coach-tests
 build/setup-coach-tests
 ```
 
@@ -48,7 +50,7 @@ build/setup-coach-tests
 ./scripts/package-macos.sh
 ```
 
-Результат упаковки: `dist/Cool-Clock-0.8.2-macOS.dmg` и `dist/SHA256SUMS`.
+Результат упаковки: `dist/Cool-Clock-0.8.3-macOS.dmg` и `dist/SHA256SUMS`.
 
 Для замера отрисовки и экспорта кадра:
 
@@ -71,7 +73,7 @@ npm test
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-Результат: `dist/Cool-Clock-0.9.1-Windows-Setup.exe` и `dist/Windows-SHA256SUMS`. В одном установщике находятся обе архитектуры и одна копия медиафайлов. Для своих путей к инструментам доступны параметры `--toolchain`, `--sdk` и `--nsis`; компилятор должен быть LLVM MinGW.
+Результат: `dist/Cool-Clock-0.9.2-Windows-Setup.exe` и `dist/Windows-SHA256SUMS`. В одном установщике находятся обе архитектуры и одна копия медиафайлов. Для своих путей к инструментам доступны параметры `--toolchain`, `--sdk` и `--nsis`; компилятор должен быть LLVM MinGW.
 
 Режимы `Cool Clock.scr`:
 

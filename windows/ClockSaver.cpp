@@ -10,6 +10,16 @@
 #include <cerrno>
 #include <limits>
 
+enum class Language { English, Russian };
+static Language language = Language::English;
+static Language LanguageForUI(uint16_t identifier) {
+    return (identifier & 0x3ff) == 0x19 ? Language::Russian : Language::English;
+}
+static const wchar_t* Text(const wchar_t* english, const wchar_t* russian) {
+    return language == Language::Russian ? russian : english;
+}
+static const wchar_t* LanguageCode() { return Text(L"en", L"ru"); }
+
 enum class Mode { Config, Screen, Embedded, Window, CheckRuntime, SelfTest, CloseExisting };
 struct Arguments {
     Mode mode = Mode::Config;
@@ -94,6 +104,18 @@ static bool AcceptedMessage(const std::wstring& message) {
     return message==L"ready"||message==L"exit"||message==L"sound:on"||message==L"sound:off"||message==L"error";
 }
 static int SelfTest() {
+    for (uint16_t identifier : {0x0019, 0x0419, 0x0819})
+        if (LanguageForUI(identifier) != Language::Russian) return 10;
+    for (uint16_t identifier : {0x0000, 0x0409, 0x0809, 0x0407, 0x0422, 0x1000})
+        if (LanguageForUI(identifier) != Language::English) return 11;
+    const auto originalLanguage = language;
+    for (Language selected : {Language::English, Language::Russian}) {
+        language = selected;
+        const bool russian = selected == Language::Russian;
+        if (wcscmp(LanguageCode(), russian ? L"ru" : L"en") != 0 ||
+            wcscmp(Text(L"Save", L"Сохранить"), russian ? L"Сохранить" : L"Save") != 0) return 12;
+    }
+    language = originalLanguage;
     struct Case { std::vector<std::wstring> args; bool ok; Mode mode; uintptr_t parent; };
     const Case cases[] = {
         {{L"--close-existing",L"C:\\Users\\Test\\Cool Clock.scr"},true,Mode::CloseExisting,0},
@@ -215,7 +237,7 @@ template<class I, class... A, class F> static I* Handler(REFIID iid, F f) { retu
 template<class T> static void Release(T*& p) { if (p) { p->Release(); p = nullptr; } }
 class Options final : public ICoreWebView2EnvironmentOptions {
     ULONG refs = 1;
-    std::wstring arguments = L"--autoplay-policy=no-user-gesture-required", language;
+    std::wstring arguments = L"--autoplay-policy=no-user-gesture-required", language = LanguageCode();
     std::wstring version = L"92.0.902.49"; // API floor for ICoreWebView2_4, the newest interface used here.
     BOOL signOn = FALSE;
     static HRESULT Copy(const std::wstring& s, LPWSTR* p) {
@@ -243,7 +265,7 @@ static int OptionsSelfTest() {
     auto options=new Options();
     LPWSTR version=nullptr,language=nullptr;
     bool ok=SUCCEEDED(options->get_TargetCompatibleBrowserVersion(&version))&&version&&ProductionVersion(version);
-    ok=ok&&SUCCEEDED(options->get_Language(&language))&&!language;
+    ok=ok&&SUCCEEDED(options->get_Language(&language))&&language&&wcscmp(language,LanguageCode())==0;
     CoTaskMemFree(version);CoTaskMemFree(language);options->Release();
     return ok?0:9;
 }
@@ -315,14 +337,14 @@ static void Resize(View* v) {if(v->controller){RECT r;GetClientRect(v->hwnd,&r);
 static void Attach(View* v) {
     auto handler=Handler<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,HRESULT,ICoreWebView2Controller*>(IID_ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,[v](HRESULT hr,ICoreWebView2Controller* controller)->HRESULT {
         if(stopping||!IsWindow(v->hwnd)){if(controller)controller->Close();return S_OK;}
-        if(FAILED(hr)||!controller){Error(v,L"Не удалось запустить окно WebView2",hr);return S_OK;}
+        if(FAILED(hr)||!controller){Error(v,Text(L"Could not start the WebView2 window", L"Не удалось запустить окно WebView2"),hr);return S_OK;}
         v->controller=controller;controller->AddRef();
-        hr=controller->get_CoreWebView2(&v->web);if(FAILED(hr)){Error(v,L"Не удалось получить WebView2",hr);return S_OK;}
+        hr=controller->get_CoreWebView2(&v->web);if(FAILED(hr)){Error(v,Text(L"Could not access WebView2", L"Не удалось получить WebView2"),hr);return S_OK;}
         ICoreWebView2_3* local=nullptr;
         hr=v->web->QueryInterface(IID_ICoreWebView2_3,reinterpret_cast<void**>(&local));
-        if(FAILED(hr)){Error(v,L"Обновите Microsoft Edge WebView2 Runtime",hr);return S_OK;}
+        if(FAILED(hr)){Error(v,Text(L"Update Microsoft Edge WebView2 Runtime", L"Обновите Microsoft Edge WebView2 Runtime"),hr);return S_OK;}
         hr=local->SetVirtualHostNameToFolderMapping(L"cool-clock.local",(exeDirectory+L"\\web").c_str(),COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);Release(local);
-        if(FAILED(hr)){Error(v,L"Не удалось открыть локальные файлы заставки",hr);return S_OK;}
+        if(FAILED(hr)){Error(v,Text(L"Could not open the local screensaver files", L"Не удалось открыть локальные файлы заставки"),hr);return S_OK;}
         bool secured=true;
         ICoreWebView2Settings* settings=nullptr;
         if(SUCCEEDED(v->web->get_Settings(&settings))){secured &= SUCCEEDED(settings->put_AreDevToolsEnabled(FALSE));secured &= SUCCEEDED(settings->put_AreDefaultContextMenusEnabled(FALSE));settings->put_IsStatusBarEnabled(FALSE);settings->put_IsZoomControlEnabled(FALSE);secured &= SUCCEEDED(settings->put_AreHostObjectsAllowed(FALSE));
@@ -348,7 +370,7 @@ static void Attach(View* v) {
         if(SUCCEEDED(v->web->QueryInterface(IID_ICoreWebView2_4,reinterpret_cast<void**>(&downloads)))) {
             auto download=Handler<ICoreWebView2DownloadStartingEventHandler,ICoreWebView2*,ICoreWebView2DownloadStartingEventArgs*>(IID_ICoreWebView2DownloadStartingEventHandler,[](ICoreWebView2*,ICoreWebView2DownloadStartingEventArgs* a)->HRESULT {return a->put_Cancel(TRUE);});
             secured &= SUCCEEDED(downloads->add_DownloadStarting(download,&token));download->Release();Release(downloads);
-        } else {Error(v,L"Обновите Microsoft Edge WebView2 Runtime");return S_OK;}
+        } else {Error(v,Text(L"Update Microsoft Edge WebView2 Runtime", L"Обновите Microsoft Edge WebView2 Runtime"));return S_OK;}
         auto message=Handler<ICoreWebView2WebMessageReceivedEventHandler,ICoreWebView2*,ICoreWebView2WebMessageReceivedEventArgs*>(IID_ICoreWebView2WebMessageReceivedEventHandler,[v](ICoreWebView2*,ICoreWebView2WebMessageReceivedEventArgs* a)->HRESULT {
             LPWSTR source=nullptr,text=nullptr;a->get_Source(&source);
             if(source&&LocalPage(source)&&SUCCEEDED(a->TryGetWebMessageAsString(&text))&&text&&wcslen(text)<=16&&AcceptedMessage(text)) {
@@ -356,7 +378,7 @@ static void Attach(View* v) {
                     if(v->error.empty()){
                         v->ready=false;
                         v->web->PostWebMessageAsString(L"pause");
-                        Error(v,L"Ошибка воспроизведения видео или WebGL. Перезапустите заставку.");
+                        Error(v,Text(L"Video playback or WebGL failed. Restart the screensaver.", L"Ошибка воспроизведения видео или WebGL. Перезапустите заставку."));
                     }
                 }
                 else if(wcscmp(text,L"ready")==0&&v->error.empty()){v->ready=true;if(v->paused)v->web->PostWebMessageAsString(L"pause");}
@@ -368,18 +390,18 @@ static void Attach(View* v) {
                 }
             }CoTaskMemFree(source);CoTaskMemFree(text);return S_OK;
         });v->web->add_WebMessageReceived(message,&token);message->Release();
-        auto completed=Handler<ICoreWebView2NavigationCompletedEventHandler,ICoreWebView2*,ICoreWebView2NavigationCompletedEventArgs*>(IID_ICoreWebView2NavigationCompletedEventHandler,[v](ICoreWebView2*,ICoreWebView2NavigationCompletedEventArgs* a)->HRESULT {BOOL success=FALSE;a->get_IsSuccess(&success);if(!success&&!stopping)Error(v,L"Не удалось загрузить файлы заставки");return S_OK;});
+        auto completed=Handler<ICoreWebView2NavigationCompletedEventHandler,ICoreWebView2*,ICoreWebView2NavigationCompletedEventArgs*>(IID_ICoreWebView2NavigationCompletedEventHandler,[v](ICoreWebView2*,ICoreWebView2NavigationCompletedEventArgs* a)->HRESULT {BOOL success=FALSE;a->get_IsSuccess(&success);if(!success&&!stopping)Error(v,Text(L"Could not load the screensaver files", L"Не удалось загрузить файлы заставки"));return S_OK;});
         v->web->add_NavigationCompleted(completed,&token);completed->Release();
-        auto failed=Handler<ICoreWebView2ProcessFailedEventHandler,ICoreWebView2*,ICoreWebView2ProcessFailedEventArgs*>(IID_ICoreWebView2ProcessFailedEventHandler,[v](ICoreWebView2*,ICoreWebView2ProcessFailedEventArgs*)->HRESULT {if(!stopping)Error(v,L"Процесс WebView2 остановлен. Перезапустите заставку.");return S_OK;});
+        auto failed=Handler<ICoreWebView2ProcessFailedEventHandler,ICoreWebView2*,ICoreWebView2ProcessFailedEventArgs*>(IID_ICoreWebView2ProcessFailedEventHandler,[v](ICoreWebView2*,ICoreWebView2ProcessFailedEventArgs*)->HRESULT {if(!stopping)Error(v,Text(L"WebView2 stopped. Restart the screensaver.", L"Процесс WebView2 остановлен. Перезапустите заставку."));return S_OK;});
         v->web->add_ProcessFailed(failed,&token);failed->Release();
-        if(!secured){Error(v,L"Не удалось включить ограничения WebView2");return S_OK;}
+        if(!secured){Error(v,Text(L"Could not enable WebView2 security restrictions", L"Не удалось включить ограничения WebView2"));return S_OK;}
         Resize(v);controller->put_IsVisible(!v->paused);
         std::wstring mode=options.mode==Mode::Screen?L"screen":options.mode==Mode::Embedded?L"preview":L"window";
-        std::wstring url=L"https://cool-clock.local/clock.html?mode="+mode+L"&sound="+((sound&&v->primary&&options.mode!=Mode::Embedded)?L"1":L"0");
-        hr=v->web->Navigate(url.c_str());if(FAILED(hr))Error(v,L"Не удалось открыть заставку",hr);
+        std::wstring url=L"https://cool-clock.local/clock.html?mode="+mode+L"&lang="+LanguageCode()+L"&sound="+((sound&&v->primary&&options.mode!=Mode::Embedded)?L"1":L"0");
+        hr=v->web->Navigate(url.c_str());if(FAILED(hr))Error(v,Text(L"Could not open the screensaver", L"Не удалось открыть заставку"),hr);
         return S_OK;
     });
-    HRESULT hr=environment->CreateCoreWebView2Controller(v->hwnd,handler);handler->Release();if(FAILED(hr))Error(v,L"Не удалось создать окно WebView2",hr);
+    HRESULT hr=environment->CreateCoreWebView2Controller(v->hwnd,handler);handler->Release();if(FAILED(hr))Error(v,Text(L"Could not create the WebView2 window", L"Не удалось создать окно WebView2"),hr);
 }
 // Control coordinates are 96-DPI logical pixels; retain native system message typography.
 static void LayoutConfig(UINT dpi) {
@@ -410,7 +432,7 @@ static LRESULT CALLBACK Procedure(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
         LayoutConfig(HIWORD(wp));return 0;
     }
     if(msg==WM_COMMAND&&!v){
-        if(LOWORD(wp)==IDOK){bool enabled=SendMessageW(soundCheck,BM_GETCHECK,0,0)==BST_CHECKED;if(!WriteSound(enabled)){MessageBoxW(hwnd,L"Не удалось сохранить настройку звука.",L"Cool Clock",MB_OK|MB_ICONERROR);return 0;}Stop();return 0;}
+        if(LOWORD(wp)==IDOK){bool enabled=SendMessageW(soundCheck,BM_GETCHECK,0,0)==BST_CHECKED;if(!WriteSound(enabled)){MessageBoxW(hwnd,Text(L"Could not save the sound setting.", L"Не удалось сохранить настройку звука."),L"Cool Clock",MB_OK|MB_ICONERROR);return 0;}Stop();return 0;}
         if(LOWORD(wp)==IDCANCEL){Stop();return 0;}
     }
     if(v){
@@ -424,7 +446,7 @@ static LRESULT CALLBACK Procedure(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
             else if(options.mode==Mode::Window)Pause(v,IsIconic(hwnd)||!IsWindowVisible(hwnd));
             ULONGLONG elapsed=GetTickCount64()-started;
             if(options.mode==Mode::Screen){LASTINPUTINFO input{sizeof(input),0};if(GetLastInputInfo(&input)){if(elapsed<1500)inputBaseline=input.dwTime;else if(input.dwTime!=inputBaseline){Stop();return 0;}}}
-            if(elapsed>30000)for(auto& view:views)if(!view->ready&&view->error.empty())Error(view.get(),L"Облака не загрузились. Переустановите Cool Clock или обновите WebView2 Runtime.");
+            if(elapsed>30000)for(auto& view:views)if(!view->ready&&view->error.empty())Error(view.get(),Text(L"The clouds did not load. Reinstall Cool Clock or update WebView2 Runtime.", L"Облака не загрузились. Переустановите Cool Clock или обновите WebView2 Runtime."));
             if(options.seconds&&elapsed>=options.seconds*1000ULL){if(std::any_of(views.begin(),views.end(),[](auto& view){return !view->ready;})){resultCode=1;errors.push_back(L"Smoke timeout before all views reported ready");}Stop();}
             return 0;
         }
@@ -437,19 +459,19 @@ static bool MakeView(const RECT& rect,bool primary) {
     DWORD ex=options.mode==Mode::Screen?WS_EX_TOPMOST|WS_EX_TOOLWINDOW:0;
     HWND parent=options.mode==Mode::Embedded?reinterpret_cast<HWND>(options.parent):nullptr;
     HWND hwnd=CreateWindowExW(ex,L"CoolClock",L"Cool Clock",style,rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top,parent,nullptr,instance,v.get());
-    if(!hwnd){Error(nullptr,L"Не удалось создать окно",HRESULT_FROM_WIN32(GetLastError()));return false;}
+    if(!hwnd){Error(nullptr,Text(L"Could not create the window", L"Не удалось создать окно"),HRESULT_FROM_WIN32(GetLastError()));return false;}
     views.push_back(std::move(v));ShowWindow(hwnd,SW_SHOW);WTSRegisterSessionNotification(hwnd,NOTIFY_FOR_THIS_SESSION);if(primary)SetTimer(hwnd,1,100,nullptr);return true;
 }
 static BOOL CALLBACK Monitor(HMONITOR,HDC,LPRECT rect,LPARAM) {return MakeView(*rect,views.empty())?TRUE:FALSE;}
 static void Config() {
     HWND parent=reinterpret_cast<HWND>(options.parent);if(!IsWindow(parent))parent=nullptr;
-    configWindow=CreateWindowExW(WS_EX_DLGMODALFRAME,L"CoolClock",L"Параметры Cool Clock",WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU,CW_USEDEFAULT,CW_USEDEFAULT,460,200,parent,nullptr,instance,nullptr);
-    if(!configWindow){Error(nullptr,L"Не удалось открыть параметры");return;}
-    soundCheck=CreateWindowW(L"BUTTON",L"Воспроизводить звук заставки",WS_VISIBLE|WS_CHILD|WS_TABSTOP|BS_AUTOCHECKBOX,24,25,400,28,configWindow,reinterpret_cast<HMENU>(100),instance,nullptr);
+    configWindow=CreateWindowExW(WS_EX_DLGMODALFRAME,L"CoolClock",Text(L"Cool Clock settings", L"Параметры Cool Clock"),WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU,CW_USEDEFAULT,CW_USEDEFAULT,460,200,parent,nullptr,instance,nullptr);
+    if(!configWindow){Error(nullptr,Text(L"Could not open settings", L"Не удалось открыть параметры"));return;}
+    soundCheck=CreateWindowW(L"BUTTON",Text(L"Play screensaver sound", L"Воспроизводить звук заставки"),WS_VISIBLE|WS_CHILD|WS_TABSTOP|BS_AUTOCHECKBOX,24,25,400,28,configWindow,reinterpret_cast<HMENU>(100),instance,nullptr);
     SendMessageW(soundCheck,BM_SETCHECK,sound?BST_CHECKED:BST_UNCHECKED,0);
-    CreateWindowW(L"STATIC",L"В миниатюре настроек звук всегда выключен.",WS_VISIBLE|WS_CHILD,24,62,400,24,configWindow,reinterpret_cast<HMENU>(101),instance,nullptr);
-    CreateWindowW(L"BUTTON",L"Сохранить",WS_VISIBLE|WS_CHILD|WS_TABSTOP|BS_DEFPUSHBUTTON,210,105,100,30,configWindow,reinterpret_cast<HMENU>(IDOK),instance,nullptr);
-    CreateWindowW(L"BUTTON",L"Отмена",WS_VISIBLE|WS_CHILD|WS_TABSTOP,320,105,100,30,configWindow,reinterpret_cast<HMENU>(IDCANCEL),instance,nullptr);
+    CreateWindowW(L"STATIC",Text(L"Sound is always off in the settings thumbnail.", L"В миниатюре настроек звук всегда выключен."),WS_VISIBLE|WS_CHILD,24,62,400,24,configWindow,reinterpret_cast<HMENU>(101),instance,nullptr);
+    CreateWindowW(L"BUTTON",Text(L"Save", L"Сохранить"),WS_VISIBLE|WS_CHILD|WS_TABSTOP|BS_DEFPUSHBUTTON,210,105,100,30,configWindow,reinterpret_cast<HMENU>(IDOK),instance,nullptr);
+    CreateWindowW(L"BUTTON",Text(L"Cancel", L"Отмена"),WS_VISIBLE|WS_CHILD|WS_TABSTOP,320,105,100,30,configWindow,reinterpret_cast<HMENU>(IDCANCEL),instance,nullptr);
     UINT dpi=GetDpiForWindow(configWindow);
     if(!dpi)dpi=96;
     RECT bounds{0,0,MulDiv(448,dpi,96),MulDiv(154,dpi,96)};
@@ -475,16 +497,16 @@ static void Report() {
     fputs("]}\n",file);fclose(file);
 }
 int WINAPI wWinMain(HINSTANCE h,HINSTANCE,PWSTR,int) {
-    instance=h;started=GetTickCount64();
+    instance=h;started=GetTickCount64();language=LanguageForUI(GetUserDefaultUILanguage());
     int argc=0;LPWSTR* argv=CommandLineToArgvW(GetCommandLineW(),&argc);std::vector<std::wstring> args;
     if(!argv)return 2;for(int i=1;i<argc;++i)args.emplace_back(argv[i]);LocalFree(argv);
-    if(!Parse(args,options)){MessageBoxW(nullptr,L"Неверные параметры. Используйте /s, /c, /p HWND или --preview.",L"Cool Clock",MB_OK|MB_ICONERROR);return 2;}
+    if(!Parse(args,options)){MessageBoxW(nullptr,Text(L"Invalid arguments. Use /s, /c, /p HWND or --preview.", L"Неверные параметры. Используйте /s, /c, /p HWND или --preview."),L"Cool Clock",MB_OK|MB_ICONERROR);return 2;}
     if(options.mode==Mode::SelfTest){int result=SelfTest();return result?result:OptionsSelfTest();}
     if(options.mode==Mode::CloseExisting)return CloseExisting(options.closeTarget);
     if(options.mode==Mode::Embedded&&!IsWindow(reinterpret_cast<HWND>(options.parent)))return 2;
     wchar_t path[32768];DWORD length=GetModuleFileNameW(nullptr,path,32768);if(!length||length>=32768)return 2;
     exeDirectory=std::wstring(path,length);exeDirectory.resize(exeDirectory.find_last_of(L"\\/"));
-    if(options.mode!=Mode::CheckRuntime&&options.mode!=Mode::Config){DWORD attrs=GetFileAttributesW((exeDirectory+L"\\web\\clock.html").c_str());if(attrs==INVALID_FILE_ATTRIBUTES||(attrs&FILE_ATTRIBUTE_DIRECTORY)){Error(nullptr,L"Файлы заставки отсутствуют. Переустановите Cool Clock.");Report();return 1;}}
+    if(options.mode!=Mode::CheckRuntime&&options.mode!=Mode::Config){DWORD attrs=GetFileAttributesW((exeDirectory+L"\\web\\clock.html").c_str());if(attrs==INVALID_FILE_ATTRIBUTES||(attrs&FILE_ATTRIBUTE_DIRECTORY)){Error(nullptr,Text(L"The screensaver files are missing. Reinstall Cool Clock.", L"Файлы заставки отсутствуют. Переустановите Cool Clock."));Report();return 1;}}
     HRESULT com=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);if(FAILED(com))return 2;
     HMODULE loader=nullptr;
     using VersionFn=HRESULT(STDAPICALLTYPE*)(PCWSTR,LPWSTR*);
@@ -496,7 +518,7 @@ int WINAPI wWinMain(HINSTANCE h,HINSTANCE,PWSTR,int) {
         create=loader?reinterpret_cast<CreateFn>(GetProcAddress(loader,"CreateCoreWebView2EnvironmentWithOptions")):nullptr;
         LPWSTR browserVersion=nullptr;runtime=(EvergreenInstalled(HKEY_LOCAL_MACHINE,KEY_WOW64_32KEY)||EvergreenInstalled(HKEY_CURRENT_USER,0))&&version&&create&&SUCCEEDED(version(nullptr,&browserVersion))&&browserVersion;CoTaskMemFree(browserVersion);
         if(options.mode==Mode::CheckRuntime){if(loader)FreeLibrary(loader);CoUninitialize();return runtime?0:1;}
-        if(!runtime){Error(nullptr,L"Нужен Microsoft Edge WebView2 Runtime. Запустите установщик Cool Clock, чтобы установить его.");Report();if(loader)FreeLibrary(loader);CoUninitialize();return 1;}
+        if(!runtime){Error(nullptr,Text(L"Microsoft Edge WebView2 Runtime is required. Run the Cool Clock installer to install it.", L"Нужен Microsoft Edge WebView2 Runtime. Запустите установщик Cool Clock, чтобы установить его."));Report();if(loader)FreeLibrary(loader);CoUninitialize();return 1;}
     }
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     WNDCLASSW wc{};wc.hInstance=instance;wc.lpfnWndProc=Procedure;wc.lpszClassName=L"CoolClock";wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);wc.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_WINDOW+1);wc.hIcon=LoadIconW(instance,MAKEINTRESOURCEW(1));if(!wc.hIcon)wc.hIcon=LoadIconW(nullptr,IDI_APPLICATION);RegisterClassW(&wc);
@@ -506,17 +528,17 @@ int WINAPI wWinMain(HINSTANCE h,HINSTANCE,PWSTR,int) {
         if(options.mode==Mode::Screen)EnumDisplayMonitors(nullptr,nullptr,Monitor,0);
         else if(options.mode==Mode::Embedded){RECT r;GetClientRect(reinterpret_cast<HWND>(options.parent),&r);MakeView(r,true);}
         else {RECT r{0,0,984,718};AdjustWindowRectEx(&r,WS_OVERLAPPEDWINDOW,FALSE,0);r.right-=r.left;r.bottom-=r.top;r.left=100;r.top=100;r.right+=100;r.bottom+=100;MakeView(r,true);}
-        if(views.empty()&&!stopping)Error(nullptr,L"Не найден экран для заставки");
+        if(views.empty()&&!stopping)Error(nullptr,Text(L"No display was found for the screensaver", L"Не найден экран для заставки"));
         if(!stopping){
             PWSTR appData=nullptr;HRESULT hr=SHGetKnownFolderPath(FOLDERID_LocalAppData,KF_FLAG_CREATE,nullptr,&appData);
-            if(FAILED(hr))Error(nullptr,L"Не удалось открыть папку данных приложения",hr);
+            if(FAILED(hr))Error(nullptr,Text(L"Could not open the application data folder", L"Не удалось открыть папку данных приложения"),hr);
             else {
                 std::wstring dataRoot=std::wstring(appData)+L"\\CoolClock";CoTaskMemFree(appData);
                 CreateDirectoryW(dataRoot.c_str(),nullptr);
                 // Control-panel children and top-level hosts can conflict when sharing a WebView2 data folder.
                 std::wstring data=dataRoot+(options.mode==Mode::Embedded?L"\\WebView2-preview":L"\\WebView2");
-                auto callback=Handler<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,HRESULT,ICoreWebView2Environment*>(IID_ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,[](HRESULT hr,ICoreWebView2Environment* env)->HRESULT {if(stopping)return S_OK;if(FAILED(hr)||!env){Error(nullptr,L"Не удалось запустить WebView2",hr);return S_OK;}environment=env;env->AddRef();for(auto& v:views)Attach(v.get());return S_OK;});
-                auto environmentOptions=new Options();hr=create(nullptr,data.c_str(),environmentOptions,callback);environmentOptions->Release();callback->Release();if(FAILED(hr))Error(nullptr,L"Не удалось инициализировать WebView2",hr);
+                auto callback=Handler<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,HRESULT,ICoreWebView2Environment*>(IID_ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,[](HRESULT hr,ICoreWebView2Environment* env)->HRESULT {if(stopping)return S_OK;if(FAILED(hr)||!env){Error(nullptr,Text(L"Could not start WebView2", L"Не удалось запустить WebView2"),hr);return S_OK;}environment=env;env->AddRef();for(auto& v:views)Attach(v.get());return S_OK;});
+                auto environmentOptions=new Options();hr=create(nullptr,data.c_str(),environmentOptions,callback);environmentOptions->Release();callback->Release();if(FAILED(hr))Error(nullptr,Text(L"Could not initialize WebView2", L"Не удалось инициализировать WebView2"),hr);
             }
         }
     }

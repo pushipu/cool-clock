@@ -3,7 +3,7 @@ import Foundation
 @main struct ClockSetupGuideTests {
     static func main() {
         for major in [12, 13, 14, 15, 26, 27] {
-            let steps = ClockSetupGuide.steps(for: major)
+            let steps = ClockSetupGuide.steps(for: major, language: .russian)
             precondition(steps.map(\.id) == ["saver", "clock", "start", "display", "check"])
             precondition(steps.allSatisfy { !$0.title.isEmpty && !$0.instructions.isEmpty && !$0.rows.isEmpty })
             precondition(steps.allSatisfy { $0.rows.contains { $0.highlighted } })
@@ -25,7 +25,19 @@ import Foundation
             precondition(steps[3].footnote.contains("пароля"))
             precondition(steps[4].instructions.contains("заблокируйте Mac"))
             precondition(steps[4].pane == steps[0].pane)
+            let english = ClockSetupGuide.steps(for: major, language: .english)
+            precondition(english.map(\.id) == steps.map(\.id))
+            precondition(english.map(\.pane) == steps.map(\.pane), "Language must not change settings destinations")
+            precondition(english[0].title == "Select Cool Clock")
+            precondition(english[1].rows[0].value == (major >= 14 ? "Never" : "Off"))
+            precondition(english[3].footnote.contains("password"))
+            precondition(english[4].instructions.contains("lock your Mac"))
+            for step in english {
+                let copy = [step.title, step.instructions, step.path, step.footnote, step.settingsButtonTitle]
+                    + step.rows.flatMap { [$0.label, $0.value] }
+                precondition(copy.allSatisfy { !$0.isEmpty && $0.range(of: "[А-Яа-яЁё]", options: .regularExpression) == nil }, "English steps contain no untranslated copy")
+            }
         }
-        print("PASS: setup routes for macOS 12, 13, 14, 15, 26 and 27; full clock removal and lock-screen check")
+        print("PASS: English/Russian setup routes for macOS 12, 13, 14, 15, 26 and 27; full clock removal and lock-screen check")
     }
 }

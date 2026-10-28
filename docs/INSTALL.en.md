@@ -2,27 +2,29 @@
 
 # Install Cool Clock for macOS
 
-[Download installer 0.8.2](https://github.com/pushipu/cool-clock/releases/download/v0.8.2/Cool-Clock-0.8.2-macOS.dmg)
+[Download installer 0.8.3](https://github.com/pushipu/cool-clock/releases/download/v0.8.3/Cool-Clock-0.8.3-macOS.dmg)
 
 Requires macOS 12 or later. One installer supports Apple Silicon and Intel.
 This is a preview release; macOS may warn about an unidentified developer
 the first time you open it.
 
+The installer and app use Russian when your system interface language is Russian, and English otherwise.
+
 ## Installation
 
 1. Open the downloaded DMG and launch **Cool Clock Installer.app**.
-2. Click **"Продолжить" (Continue)** and choose whether to enable sound.
+2. Click **Continue** and choose whether to enable sound.
    Sound is off on a first installation.
-3. Click **"Установить" (Install)** and follow the setup steps below.
+3. Click **Install** and follow the setup steps below.
 
 The wizard's buttons open System Settings, and a floating guide shows you
-what to select. Make the change in System Settings, then click **"Далее" (Next)**
+what to select. Make the change in System Settings, then click **Next**
 in the guide. The wizard does not select the screensaver or check your actions
 automatically. The guide does not need Accessibility or Screen Recording
 permission. Drag its title bar to move it.
 
 If the screensaver is already installed, click
-**"Cool Clock уже установлен: настроить macOS…" (Cool Clock is already installed: set up macOS…)**
+**Cool Clock is already installed: set up macOS…**
 on the first screen. You do not need to reinstall it.
 
 ## Set up the screensaver
@@ -51,10 +53,10 @@ on the first screen. You do not need to reinstall it.
 ## Sound
 
 In System Settings, select Cool Clock, open its **Options**, change the sound
-toggle, and click **"Сохранить" (Save)**.
+toggle, and click **Save**.
 
 In the separate **Cool Clock Preview** app, click the clock to toggle sound
-or open **Cool Clock → "Настройки…" (Settings…)** (⌘,). The preview app and
+or open **Cool Clock → Settings…** (⌘,). The preview app and
 system screensaver have separate sound settings. During installation,
 your choice is applied to both.
 
@@ -72,7 +74,7 @@ To update, run the new installer. You can eject the DMG after installation.
 The screensaver is stored at `~/Library/Screen Savers/Cool Clock.saver`,
 and the preview app at `~/Applications/Cool Clock Preview.app`.
 
-To verify the download, save [SHA256SUMS](https://github.com/pushipu/cool-clock/releases/download/v0.8.2/SHA256SUMS)
+To verify the download, save [SHA256SUMS](https://github.com/pushipu/cool-clock/releases/download/v0.8.3/SHA256SUMS)
 beside the DMG and run this command in that folder:
 
 ```sh

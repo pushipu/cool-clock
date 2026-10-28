@@ -37,6 +37,12 @@ jobs:
         run: |
           python3 scripts/build-windows.py 2>&1 | Tee-Object output/windows-ci/build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test clock model, language selection and package validation
+        run: |
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Native installation, rendering, update and removal
         run: ./tests/WindowsSmoke.ps1 -ExpectedArchitecture '${{ matrix.architecture }}'
       - name: Upload verification evidence

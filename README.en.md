@@ -10,12 +10,14 @@ The iconic, super-stylish clock everyone knows. Now a screensaver for macOS and 
 
 | System | Installer | Setup guide |
 | --- | --- | --- |
-| macOS 12 or later, Apple Silicon and Intel | [Download for Mac · 0.8.2](https://github.com/pushipu/cool-clock/releases/download/v0.8.2/Cool-Clock-0.8.2-macOS.dmg) | [macOS guide](docs/INSTALL.en.md) |
-| Windows 10/11, Intel/AMD x64 and ARM64 | [Download for Windows · 0.9.1](https://github.com/pushipu/cool-clock/releases/download/v0.9.1-windows-preview.1/Cool-Clock-0.9.1-Windows-Setup.exe) | [Windows guide](windows/INSTALL.en.md) |
+| macOS 12 or later, Apple Silicon and Intel | [Download for Mac · 0.8.3](https://github.com/pushipu/cool-clock/releases/download/v0.8.3/Cool-Clock-0.8.3-macOS.dmg) | [macOS guide](docs/INSTALL.en.md) |
+| Windows 10/11, Intel/AMD x64 and ARM64 | [Download for Windows · 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2-windows-preview.1/Cool-Clock-0.9.2-Windows-Setup.exe) | [Windows guide](windows/INSTALL.en.md) |
 
 Both releases are previews. On Windows, automatic activation after inactivity and behavior after locking the PC still need testing on everyday PCs. The installers are not yet signed with a publisher certificate, so your system may show a warning the first time you open them.
 
 ## Setup and sound
+
+The interface follows your system language: Russian for Russian, English for all others.
 
 Run the installer and choose whether to enable sound. The wizard then shows you how to set Cool Clock as your screensaver and choose how long it waits before starting.
 

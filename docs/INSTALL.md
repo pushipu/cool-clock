@@ -2,11 +2,13 @@
 
 # Установка Cool Clock для macOS
 
-[Скачать установщик 0.8.2](https://github.com/pushipu/cool-clock/releases/download/v0.8.2/Cool-Clock-0.8.2-macOS.dmg)
+[Скачать установщик 0.8.3](https://github.com/pushipu/cool-clock/releases/download/v0.8.3/Cool-Clock-0.8.3-macOS.dmg)
 
 Требуется macOS 12 или новее. Один установщик подходит для Apple Silicon и Intel.
 Выпуск предварительный; при первом открытии macOS может предупредить
 о неизвестном разработчике.
+
+Установщик и приложение используют русский язык, если он выбран языком интерфейса системы. Во всех остальных случаях включается английский.
 
 ## Установка
 
@@ -68,7 +70,7 @@
 Заставка находится в `~/Library/Screen Savers/Cool Clock.saver`,
 предпросмотр — в `~/Applications/Cool Clock Preview.app`.
 
-Для проверки загрузки сохраните [SHA256SUMS](https://github.com/pushipu/cool-clock/releases/download/v0.8.2/SHA256SUMS)
+Для проверки загрузки сохраните [SHA256SUMS](https://github.com/pushipu/cool-clock/releases/download/v0.8.3/SHA256SUMS)
 рядом с DMG и выполните в этой папке:
 
 ```sh

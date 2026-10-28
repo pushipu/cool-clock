@@ -1,3 +1,5 @@
+import { createText } from './language.js';
+
 const vertex = `#version 300 es
 void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.0-1.0,0,1);}`;
 const fragment = `#version 300 es
@@ -26,13 +28,14 @@ void main(){
  outputColor=vec4(color,1);
 }`;
 const roundEven = value => {const n=Math.floor(value),fraction=value-n;return fraction===.5?(n%2===0?n:n+1):Math.round(value);};
-export function createCloudRenderer(canvas) {
+export function createCloudRenderer(canvas,language='en') {
+  const text=createText(language);
   const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:false,powerPreference:'low-power'});
-  if(!gl) throw new Error('Для облаков требуется WebGL 2.');
-  function compile(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
+  if(!gl) throw new Error(text('WebGL 2 is required for the clouds.', 'Для облаков требуется WebGL 2.'));
+  function compile(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(text('Could not compile the graphics shader: ', 'Не удалось скомпилировать графический шейдер: ')+gl.getShaderInfoLog(s));return s;}
   const program=gl.createProgram();
   gl.attachShader(program,compile(gl.VERTEX_SHADER,vertex));gl.attachShader(program,compile(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(program);
-  if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));
+  if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(text('Could not link the graphics shaders: ', 'Не удалось связать графические шейдеры: ')+gl.getProgramInfoLog(program));
   gl.useProgram(program);
   const uniforms=Object.fromEntries(['viewport','background','rectangleCount','bounds','blends'].map(name=>[name,gl.getUniformLocation(program,name)]));
   const textures=Array.from({length:4},(_,index)=>{

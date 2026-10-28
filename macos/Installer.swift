@@ -5,9 +5,9 @@ import AppKit
 final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var window: NSWindow!
     private let content = NSStackView()
-    private let backButton = NSButton(title: "Отмена", target: nil, action: nil)
-    private let nextButton = NSButton(title: "Продолжить", target: nil, action: nil)
-    private let soundButton = NSButton(checkboxWithTitle: "Воспроизводить музыку и минутные сигналы", target: nil, action: nil)
+    private let backButton = NSButton(title: clockText("Cancel", "Отмена"), target: nil, action: nil)
+    private let nextButton = NSButton(title: clockText("Continue", "Продолжить"), target: nil, action: nil)
+    private let soundButton = NSButton(checkboxWithTitle: clockText("Play music and minute beeps", "Воспроизводить музыку и минутные сигналы"), target: nil, action: nil)
     private var page = 0
     private var installing = false
     private var installedPreview: URL?
@@ -28,14 +28,14 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let menu = NSMenu()
         let item = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Завершить установку", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: clockText("Quit Installer", "Завершить установку"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.submenu = appMenu
         menu.addItem(item)
         NSApp.mainMenu = menu
 
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 610, height: 420),
                           styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Установка Cool Clock"
+        window.title = clockText("Install Cool Clock", "Установка Cool Clock")
         window.delegate = self
         window.isReleasedWhenClosed = false
         let root = window.contentView!
@@ -97,37 +97,37 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             content.addArrangedSubview(icon)
             icon.widthAnchor.constraint(equalToConstant: 72).isActive = true
             icon.heightAnchor.constraint(equalToConstant: 72).isActive = true
-            label("Установить Cool Clock", size: 26, bold: true)
-            label("Живые облака и часы на экране вашего Mac.")
-            label("Мастер установит заставку и приложение предпросмотра для вашей учётной записи. Пароль администратора не понадобится.")
+            label(clockText("Install Cool Clock", "Установить Cool Clock"), size: 26, bold: true)
+            label(clockText("Moving clouds and a clock on your Mac.", "Живые облака и часы на экране вашего Mac."))
+            label(clockText("Install the screensaver and preview app for your account. No administrator password is needed.", "Мастер установит заставку и приложение предпросмотра для вашей учётной записи. Пароль администратора не понадобится."))
             let saver = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Screen Savers/Cool Clock.saver")
             if Bundle(url: saver)?.bundleIdentifier == "ru.coolclock.screensaver" {
-                let guide = NSButton(title: "Cool Clock уже установлен: настроить macOS…", target: self, action: #selector(startSetupGuide))
+                let guide = NSButton(title: clockText("Cool Clock is already installed: set up macOS…", "Cool Clock уже установлен: настроить macOS…"), target: self, action: #selector(startSetupGuide))
                 guide.bezelStyle = .rounded
                 content.addArrangedSubview(guide)
             }
-            backButton.title = "Отмена"; nextButton.title = "Продолжить"
+            backButton.title = clockText("Cancel", "Отмена"); nextButton.title = clockText("Continue", "Продолжить")
         case 1:
-            label("Звук заставки", size: 26, bold: true)
-            label("Выберите, как будут работать часы.")
+            label(clockText("Screensaver sound", "Звук заставки"), size: 26, bold: true)
+            label(clockText("Choose whether the clock plays sound.", "Выберите, как будут работать часы."))
             content.addArrangedSubview(soundButton)
-            label("Когда звук выключен, облака и часы продолжают двигаться. Сигналы и музыка не воспроизводятся.")
-            label("Позже звук заставки можно изменить в её параметрах macOS. У предпросмотра есть собственная настройка звука.")
-            backButton.title = "Назад"; nextButton.title = "Установить"
+            label(clockText("With sound off, the clouds and clock keep moving. Music and beeps are muted.", "Когда звук выключен, облака и часы продолжают двигаться. Сигналы и музыка не воспроизводятся."))
+            label(clockText("You can change the sound later in the screensaver settings. The preview app has its own sound setting.", "Позже звук заставки можно изменить в её параметрах macOS. У предпросмотра есть собственная настройка звука."))
+            backButton.title = clockText("Back", "Назад"); nextButton.title = clockText("Install", "Установить")
         case 2:
-            label("Устанавливаем Cool Clock", size: 26, bold: true)
-            label("Копируем приложение и заставку. Это займёт немного времени.")
+            label(clockText("Installing Cool Clock", "Устанавливаем Cool Clock"), size: 26, bold: true)
+            label(clockText("Copying the app and screensaver. This will take a moment.", "Копируем приложение и заставку. Это займёт немного времени."))
             let progress = NSProgressIndicator()
             progress.style = .bar
             progress.isIndeterminate = true
             content.addArrangedSubview(progress)
             progress.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
             progress.startAnimation(nil)
-            backButton.isHidden = true; nextButton.title = "Установка…"
+            backButton.isHidden = true; nextButton.title = clockText("Installing…", "Установка…")
         default:
             let index = page - 3
             let step = setupSteps[index]
-            label("Cool Clock установлен · Настройка macOS · Шаг \(index + 1) из \(setupSteps.count)", size: 12, bold: true)
+            label(clockText("Cool Clock installed · macOS setup · Step \(index + 1) of \(setupSteps.count)", "Cool Clock установлен · Настройка macOS · Шаг \(index + 1) из \(setupSteps.count)"), size: 12, bold: true)
             label(step.title, size: 25, bold: true)
             label(step.instructions)
             let illustration = SetupGuideView(step: step)
@@ -141,14 +141,14 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             settings.bezelStyle = .rounded
             actions.addArrangedSubview(settings)
             if installedPreview != nil {
-                let preview = NSButton(title: "Отдельное окно часов", target: self, action: #selector(openPreview))
+                let preview = NSButton(title: clockText("Open clock in a window", "Отдельное окно часов"), target: self, action: #selector(openPreview))
                 preview.bezelStyle = .rounded
                 actions.addArrangedSubview(preview)
             }
             content.addArrangedSubview(actions)
-            label("Выполните шаг в системных настройках и вернитесь сюда. Кнопка «Дальше» не меняет настройки автоматически.", size: 12)
-            backButton.title = index == 0 ? "Закрыть" : "Назад"
-            nextButton.title = index == setupSteps.count - 1 ? "Готово" : "Дальше"
+            label(clockText("Complete this step in System Settings, then return here. Next does not change settings automatically.", "Выполните шаг в системных настройках и вернитесь сюда. Кнопка «Дальше» не меняет настройки автоматически."), size: 12)
+            backButton.title = index == 0 ? clockText("Close", "Закрыть") : clockText("Back", "Назад")
+            nextButton.title = index == setupSteps.count - 1 ? clockText("Done", "Готово") : clockText("Next", "Дальше")
         }
         if page >= 3, let coach {
             coach.show(step: setupSteps[page - 3], index: page - 3, total: setupSteps.count)
@@ -211,7 +211,7 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func install() {
         guard let payload = Bundle.main.url(forResource: "Cool Clock Preview", withExtension: "app") else {
-            showError("В установщике не найдено приложение Cool Clock. Скачайте полный пакет ещё раз.")
+            showError(clockText("The Cool Clock app is missing from the installer. Download the complete package again.", "В установщике не найдено приложение Cool Clock. Скачайте полный пакет ещё раз."))
             return
         }
         let enabled = soundButton.state == .on
@@ -230,7 +230,7 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if apps.allSatisfy({ $0.isTerminated }) { completion(); return }
         guard Date() < deadline else {
             installing = false; page = 1; showPage()
-            showError("Закройте Cool Clock Preview и повторите установку.")
+            showError(clockText("Close Cool Clock Preview and try installing again.", "Закройте Cool Clock Preview и повторите установку."))
             return
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -254,9 +254,9 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func showError(_ message: String) {
         if !window.isVisible { returnToInstaller() }
         let alert = NSAlert()
-        alert.messageText = "Не удалось завершить действие"
+        alert.messageText = clockText("Could not complete the action", "Не удалось завершить действие")
         alert.informativeText = message
-        alert.addButton(withTitle: "Понятно")
+        alert.addButton(withTitle: clockText("OK", "Понятно"))
         alert.beginSheetModal(for: window)
     }
 
@@ -273,7 +273,7 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func openSystemSettings(pane: String? = nil, onOpen: (() -> Void)? = nil) {
         guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.systempreferences") else {
-            showError("Откройте системные настройки из меню Apple и выберите Cool Clock в разделе заставок.")
+            showError(clockText("Open System Settings from the Apple menu and select Cool Clock in Screen Saver settings.", "Откройте системные настройки из меню Apple и выберите Cool Clock в разделе заставок."))
             return
         }
         guard let pane, let url = URL(string: "x-apple.systempreferences:\(pane)") else {
@@ -285,7 +285,7 @@ final class InstallerApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             DispatchQueue.main.async {
                 if error != nil {
                     self.openApplication(app) {
-                        self.showError("Ссылка на раздел не сработала. Выберите путь из подсказки в системных настройках вручную.")
+                        self.showError(clockText("The settings link did not open. Follow the path shown in the guide to open the section manually.", "Ссылка на раздел не сработала. Выберите путь из подсказки в системных настройках вручную."))
                     }
                 } else { onOpen?() }
             }

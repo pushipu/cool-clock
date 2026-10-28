@@ -36,25 +36,25 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let menu = NSMenu()
         let applicationItem = NSMenuItem()
         let applicationMenu = NSMenu(title: "Cool Clock")
-        let settings = NSMenuItem(title: "Настройки…", action: #selector(showSettings), keyEquivalent: ",")
+        let settings = NSMenuItem(title: clockText("Settings…", "Настройки…"), action: #selector(showSettings), keyEquivalent: ",")
         settings.target = self
         applicationMenu.addItem(settings)
         applicationMenu.addItem(.separator())
-        let quit = NSMenuItem(title: "Завершить Cool Clock", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: clockText("Quit Cool Clock", "Завершить Cool Clock"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
         applicationMenu.addItem(quit)
         applicationItem.submenu = applicationMenu
         menu.addItem(applicationItem)
         let windowItem = NSMenuItem()
-        let windowMenu = NSMenu(title: "Окно")
-        windowMenu.addItem(NSMenuItem(title: "Закрыть", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
+        let windowMenu = NSMenu(title: clockText("Window", "Окно"))
+        windowMenu.addItem(NSMenuItem(title: clockText("Close", "Закрыть"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
         windowItem.submenu = windowMenu
         menu.addItem(windowItem)
         NSApp.mainMenu = menu
         NSApp.windowsMenu = windowMenu
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 984, height: 718), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
-        window.title = "Cool Clock — предпросмотр заставки"
+        window.title = clockText("Cool Clock — screensaver preview", "Cool Clock — предпросмотр заставки")
         window.center()
         window.delegate = self
         guard let bundle = Bundle(url: Bundle.main.bundleURL.appendingPathComponent("Contents/PlugIns/Cool Clock.saver")),
@@ -224,7 +224,7 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         saver.autoresizingMask = [.width, .height]
         window.contentView = saver
-        window.title = "Cool Clock — проверка воспроизведения"
+        window.title = clockText("Cool Clock — playback check", "Cool Clock — проверка воспроизведения")
         window.center()
         window.orderFront(nil)
         defer { saver.stopAnimation(); window.orderOut(nil) }
@@ -254,7 +254,7 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         try check(button.isTransparent && button.isAccessibilityElement(), "dial exposes a transparent accessible button")
         let muteBefore = saver.value(forKey: "isAudioMuted") as? Bool
-        try check(button.accessibilityLabel() == (muteBefore == true ? "Включить звук" : "Выключить звук"), "audio button exposes its initial action")
+        try check(button.accessibilityLabel() == (muteBefore == true ? clockText("Turn sound on", "Включить звук") : clockText("Turn sound off", "Выключить звук")), "audio button exposes its initial action")
         let audioSyncBefore = saver.value(forKey: "audioSynchronizationCount") as? Int
         button.performClick(nil)
         let muteAfter = saver.value(forKey: "isAudioMuted") as? Bool
@@ -262,16 +262,16 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let clickPhase = saverAudioPhase()
         RunLoop.current.run(until: Date().addingTimeInterval(0.15))
         try check(ClockState.wrap(saverAudioPhase() - clickPhase, 60) > 0.08, "dial click preserves advancing audio phase")
-        try check(button.toolTip?.contains(muteAfter == true ? "выключен" : "включён") == true, "dial tooltip reflects sound state")
+        try check(button.toolTip?.contains(muteAfter == true ? clockText("off", "выключен") : clockText("on", "включён")) == true, "dial tooltip reflects sound state")
         button.performClick(nil)
         try check((saver.value(forKey: "isAudioMuted") as? Bool) == muteBefore && (saver.value(forKey: "audioSynchronizationCount") as? Int) == audioSyncBefore, "second click restores sound without resynchronizing")
-        try check(button.accessibilityLabel() == (muteBefore == true ? "Включить звук" : "Выключить звук"), "audio button exposes its current action")
+        try check(button.accessibilityLabel() == (muteBefore == true ? clockText("Turn sound on", "Включить звук") : clockText("Turn sound off", "Выключить звук")), "audio button exposes its current action")
         let savedSound = ClockPreferences.soundEnabled()
         let sheet = saver.configureSheet!
         let controls = sheet.contentView!.subviews.compactMap { $0 as? NSButton }
         guard let checkbox = controls.first(where: { $0.accessibilityIdentifier() == "soundEnabled" }),
-              let cancel = controls.first(where: { $0.title == "Отмена" }),
-              let save = controls.first(where: { $0.title == "Сохранить" }) else {
+              let cancel = controls.first(where: { $0.title == clockText("Cancel", "Отмена") }),
+              let save = controls.first(where: { $0.title == clockText("Save", "Сохранить") }) else {
             throw NSError(domain: "CoolClockTests", code: 6, userInfo: [NSLocalizedDescriptionKey: "Native settings controls missing"])
         }
         window.beginSheet(sheet)
@@ -450,7 +450,7 @@ final class PreviewApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
               let saver = type.init(frame:NSRect(x:0,y:0,width:984,height:718),isPreview:true) else { throw NSError(domain:"CoolClockBenchmark",code:1) }
         let window = NSWindow(contentRect:saver.bounds,styleMask:[.titled,.closable],backing:.buffered,defer:false)
         window.isReleasedWhenClosed = false
-        window.title = "Cool Clock — измерение нагрузки"
+        window.title = clockText("Cool Clock — performance measurement", "Cool Clock — измерение нагрузки")
         window.contentView = saver; window.center(); window.orderFront(nil)
         defer { saver.stopAnimation(); window.orderOut(nil) }
         let timer = Timer.scheduledTimer(withTimeInterval:1/30,repeats:true) { _ in saver.animateOneFrame(); saver.displayIfNeeded() }

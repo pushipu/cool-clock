@@ -89,6 +89,60 @@ function Wait-SetupPage([Diagnostics.Process]$Process, [string]$Title, [string[]
     throw "Installer page timed out: $Title. Last visible text: $text"
 }
 
+
+function Check-SetupGuide([string]$SetupFile, [bool]$Russian, [string]$ConcurrentSetup = '', [bool]$ConcurrentRussian = $false) {
+    $text = if ($Russian) {
+        @{
+            welcome = 'Вас приветствует мастер установки'; sound = 'Звук заставки'
+            enableSound = 'Включить звук и минутные сигналы'; select = 'Шаг 1 из 4. Выберите Cool Clock'
+            selectButton = 'Выбрать Cool Clock в Windows'; interval = 'Шаг 2 из 4. Задайте интервал'
+            settings = 'Открыть параметры заставки'; apply = 'Применить'; power = 'Шаг 3 из 4. Проверьте таймер экрана'
+            powerButton = 'Открыть параметры питания'; check = 'Шаг 4 из 4. Проверьте запуск'
+            preview = 'Просмотр'; finish = 'Завершение работы мастера установки'
+        }
+    } else {
+        @{
+            welcome = 'Welcome to Cool Clock Setup'; sound = 'Screensaver sound'
+            enableSound = 'Enable sound and minute beeps'; select = 'Step 1 of 4. Select Cool Clock'
+            selectButton = 'Select Cool Clock in Windows'; interval = 'Step 2 of 4. Set the wait time'
+            settings = 'Open screen saver settings'; apply = 'Apply'; power = 'Step 3 of 4. Check the screen timer'
+            powerButton = 'Open power settings'; check = 'Step 4 of 4. Test the screensaver'
+            preview = 'Preview'; finish = 'Completing Cool Clock Setup'
+        }
+    }
+    $setup = Start-Native $SetupFile
+    $wizard = Wait-SetupPage $setup $text.welcome
+    if ($ConcurrentSetup) {
+        # .onInit runs before NSIS refreshes LangString selection; check its error in the opposite language.
+        $other = Start-Native $ConcurrentSetup
+        $message = if ($ConcurrentRussian) { 'Установщик Cool Clock уже запущен.' } else { 'The Cool Clock installer is already running.' }
+        $dialog = Wait-SetupPage $other $message
+        [SmokeWindow]::ClickInstallerButton($dialog, 1)
+        Assert-True ($other.WaitForExit(10000) -and $other.ExitCode -eq 13) 'Concurrent setup must show its localized error and exit with code 13'
+        $proof.stages += 'localized-initialization-error'
+    }
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup $text.sound @($text.enableSound)
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup $text.select @($text.selectButton) 240
+    Assert-True (-not [SmokeWindow]::ButtonEnabled($wizard, 3)) 'The first guide page must not return to the installation section'
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup $text.interval @($text.settings, $text.apply)
+    [SmokeWindow]::ClickInstallerButton($wizard, 3)
+    $wizard = Wait-SetupPage $setup $text.select @($text.selectButton)
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup $text.interval @($text.settings, $text.apply)
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup $text.power @($text.powerButton)
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup $text.check @($text.settings, $text.preview)
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup $text.finish
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    Wait-Native $setup 30
+    $proof.stages += if ($Russian) { 'russian-installer-guide' } else { 'english-installer-guide' }
+}
+
 try {
     Assert-True $IsWindows 'This smoke test requires Windows and PowerShell 7'
     $proof.os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
@@ -128,6 +182,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 public static class SmokeWindow {
+    [DllImport("kernel32.dll")] public static extern ushort GetUserDefaultUILanguage();
     [StructLayout(LayoutKind.Sequential)] public struct Message { public IntPtr hwnd; public uint msg; public UIntPtr wp; public IntPtr lp; public uint time; public int x, y; public uint extra; }
     [DllImport("user32.dll")] static extern int GetMessageW(out Message message, IntPtr window, uint min, uint max);
     [DllImport("user32.dll")] static extern bool TranslateMessage(ref Message message);
@@ -228,27 +283,26 @@ public static class SmokeWindow {
     Assert-True ($active.MainWindowHandle -ne 0) 'No active preview window appeared'
     # Exercise the installed UI flow on the disposable runner without selecting a saver or changing its timer.
     $proof.installerPages = @()
-    $setup = Start-Native $setups[0].FullName
-    $wizard = Wait-SetupPage $setup 'Вас приветствует мастер установки'
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup 'Звук заставки' @('Включить звук и минутные сигналы')
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup 'Шаг 1 из 4. Выберите Cool Clock' @('Выбрать Cool Clock в Windows') 240
-    Assert-True (-not [SmokeWindow]::ButtonEnabled($wizard, 3)) 'The first guide page must not return to the installation section'
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup 'Шаг 2 из 4. Задайте интервал' @('Открыть параметры заставки', 'Применить')
-    [SmokeWindow]::ClickInstallerButton($wizard, 3)
-    $wizard = Wait-SetupPage $setup 'Шаг 1 из 4. Выберите Cool Clock' @('Выбрать Cool Clock в Windows')
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup 'Шаг 2 из 4. Задайте интервал' @('Открыть параметры заставки', 'Применить')
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup 'Шаг 3 из 4. Проверьте таймер экрана' @('Открыть параметры питания')
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup 'Шаг 4 из 4. Проверьте запуск' @('Открыть параметры заставки', 'Просмотр')
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    $wizard = Wait-SetupPage $setup 'Завершение работы мастера установки'
-    [SmokeWindow]::ClickInstallerButton($wizard, 1)
-    Wait-Native $setup 30
+    $systemRussian = ([SmokeWindow]::GetUserDefaultUILanguage() -band 0x3ff) -eq 0x19
+    $proof.systemUILanguage = [SmokeWindow]::GetUserDefaultUILanguage()
+    $dependencies = Get-Content -Raw (Join-Path $root 'windows/dependencies.json') | ConvertFrom-Json
+    $hostTools = $dependencies.hosts.('Windows-' + $ExpectedArchitecture)
+    $nsis = $dependencies.($hostTools.nsis)
+    $nsisRoot = Join-Path (Join-Path $root 'build/windows-tools') $nsis.directory
+    $makensis = Join-Path $nsisRoot $nsis.executable
+    $languageSetup = Join-Path $evidence 'Cool-Clock-language-test.exe'
+    # German exercises the English fallback when the runner itself uses Russian.
+    $testLanguage = if ($systemRussian) { 1031 } else { 1049 }
+    $version = ([Diagnostics.FileVersionInfo]::GetVersionInfo($builtSaver)).ProductVersion
+    $oldNSIS = $env:NSISDIR
+    try {
+        $env:NSISDIR = $nsisRoot
+        & $makensis '-V3' '-NOCD' '-INPUTCHARSET' 'UTF8' "-DPAYLOAD_DIR=$(Join-Path $root 'build/windows')" "-DOUTPUT_FILE=$languageSetup" "-DVERSION=$version" "-DCOOL_CLOCK_TEST_UI_LANGUAGE=$testLanguage" (Join-Path $root 'windows/Installer.nsi') 2>&1 | Tee-Object (Join-Path $evidence 'language-installer-build.log')
+        Assert-True ($LASTEXITCODE -eq 0) 'Could not build the test-only installer language variant'
+    } finally { $env:NSISDIR = $oldNSIS }
+    Check-SetupGuide $setups[0].FullName $systemRussian $languageSetup (-not $systemRussian)
+    Check-SetupGuide $languageSetup (-not $systemRussian)
+    Remove-Item $languageSetup
     Wait-Native $embedded 10
     Wait-Native $active 10
     Assert-Machine $saver $machine

@@ -11,7 +11,7 @@ import struct
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERSION = "0.9.1"
+VERSION = "0.9.2"
 
 
 def run(*command, **kwargs):
@@ -109,8 +109,8 @@ def main():
     resource.write_text(f'''#include <windows.h>
 1 ICON "{(ROOT / 'assets/ClockIcon.ico').as_posix()}"
 1 VERSIONINFO
- FILEVERSION 0,9,1,0
- PRODUCTVERSION 0,9,1,0
+ FILEVERSION 0,9,2,0
+ PRODUCTVERSION 0,9,2,0
  FILEOS VOS_NT_WINDOWS32
  FILETYPE VFT_APP
 BEGIN
