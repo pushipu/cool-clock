@@ -2,7 +2,7 @@
 
 # Установка Cool Clock для Windows
 
-[Скачать установщик 0.9.3](https://github.com/pushipu/cool-clock/releases/download/v0.9.3/Cool-Clock-0.9.3-Windows-Setup.exe)
+[Скачать установщик 0.9.4](https://github.com/pushipu/cool-clock/releases/download/v0.9.4/Cool-Clock-0.9.4-Windows-Setup.exe)
 
 Требуется Windows 10 или 11. Один установщик подходит для Intel/AMD x64 и ARM64.
 Это предварительный выпуск; установщик пока без цифровой подписи.
@@ -20,6 +20,8 @@
    Windows и не проверяет ваши действия автоматически.
 
 ## 1. Выберите Cool Clock
+
+Если параметры заставки Windows уже открыты, сначала сохраните нужные изменения и закройте это окно.
 
 Нажмите **«Выбрать Cool Clock в Windows»**. Эта кнопка заменит текущую выбранную
 заставку на Cool Clock и откроет её настройки. Проверьте поле
