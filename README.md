@@ -1,8 +1,8 @@
+**RU** / [EN](README.en.md)
+
 # Cool Clock
 
 Те самые суперстильные часы, знакомые каждому. Теперь в виде заставки для macOS и Windows.
-
-The iconic, super-stylish clock everyone knows. Now a screensaver for macOS and Windows.
 
 ![Циферблат Cool Clock на фоне облаков](docs/preview.png)
 
