@@ -2,7 +2,7 @@
 
 # Установка Cool Clock для macOS
 
-[Скачать установщик 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/Cool-Clock-0.9.2-macOS.dmg)
+[Скачать установщик 0.9.3](https://github.com/pushipu/cool-clock/releases/download/v0.9.3/Cool-Clock-0.9.3-macOS.dmg)
 
 Требуется macOS 12 или новее. Один установщик подходит для Apple Silicon и Intel.
 Выпуск предварительный; при первом открытии macOS может предупредить
@@ -70,7 +70,7 @@
 Заставка находится в `~/Library/Screen Savers/Cool Clock.saver`,
 предпросмотр — в `~/Applications/Cool Clock Preview.app`.
 
-Для проверки загрузки сохраните [SHA256SUMS](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/SHA256SUMS)
+Для проверки загрузки сохраните [SHA256SUMS](https://github.com/pushipu/cool-clock/releases/download/v0.9.3/SHA256SUMS)
 рядом с DMG и выполните в этой папке:
 
 ```sh

@@ -10,8 +10,8 @@ The iconic, super-stylish clock everyone knows. Now a screensaver for macOS and 
 
 | System | Installer | Setup guide |
 | --- | --- | --- |
-| macOS 12 or later, Apple Silicon and Intel | [Download for Mac · 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/Cool-Clock-0.9.2-macOS.dmg) | [macOS guide](docs/INSTALL.en.md) |
-| Windows 10/11, Intel/AMD x64 and ARM64 | [Download for Windows · 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/Cool-Clock-0.9.2-Windows-Setup.exe) | [Windows guide](windows/INSTALL.en.md) |
+| macOS 12 or later, Apple Silicon and Intel | [Download for Mac · 0.9.3](https://github.com/pushipu/cool-clock/releases/download/v0.9.3/Cool-Clock-0.9.3-macOS.dmg) | [macOS guide](docs/INSTALL.en.md) |
+| Windows 10/11, Intel/AMD x64 and ARM64 | [Download for Windows · 0.9.3](https://github.com/pushipu/cool-clock/releases/download/v0.9.3/Cool-Clock-0.9.3-Windows-Setup.exe) | [Windows guide](windows/INSTALL.en.md) |
 
 This is a preview release. On Windows, automatic activation after inactivity and behavior after locking the PC still need testing on everyday PCs. The installers are not yet signed with a publisher certificate, so your system may show a warning the first time you open them.
 
