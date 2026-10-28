@@ -366,7 +366,8 @@ public static class SmokeWindow {
     $nsis = $dependencies.($hostTools.nsis)
     $nsisRoot = Join-Path (Join-Path $root 'build/windows-tools') $nsis.directory
     $makensis = Join-Path $nsisRoot $nsis.executable
-    $languageSetup = Join-Path $evidence 'Cool-Clock-language-test.exe'
+    # The ephemeral runner cleans this image; ARM emulation may keep it locked after exit.
+    $languageSetup = Join-Path ([IO.Path]::GetTempPath()) ("CoolClock-language-" + [Guid]::NewGuid().ToString('N') + '.exe')
     # German exercises the English fallback when the runner itself uses Russian.
     $testLanguage = if ($systemRussian) { 1031 } else { 1049 }
     $version = ([Diagnostics.FileVersionInfo]::GetVersionInfo($builtSaver)).ProductVersion
@@ -380,7 +381,6 @@ public static class SmokeWindow {
     $proof.installerPages = @()
     Check-SetupGuide $setups[0].FullName $systemRussian $languageSetup (-not $systemRussian) -CheckUpdate
     Check-SetupGuide $languageSetup (-not $systemRussian)
-    Remove-Item $languageSetup
     Assert-Machine $saver $machine
     Assert-True ((Desktop-Policy) -eq $beforePolicy) 'Interactive update or guide changed desktop policy without a settings action'
     $proof.stages += 'interactive-guide-four-steps-and-back-navigation'
