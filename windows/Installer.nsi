@@ -19,6 +19,11 @@ SetCompressor zlib
 !insertmacro MUI_PAGE_WELCOME
 Page custom SoundPage SoundLeave
 !insertmacro MUI_PAGE_INSTFILES
+Page custom SelectGuidePage
+Page custom IntervalGuidePage
+Page custom PowerGuidePage
+Page custom CheckGuidePage
+!define MUI_FINISHPAGE_TEXT "Файлы Cool Clock установлены.$\r$\n$\r$\nЧтобы часы запускались автоматически, выберите Cool Clock в параметрах заставки Windows, задайте интервал и нажмите «Применить».$\r$\n$\r$\nМастер не проверяет автоматический запуск и не меняет параметры входа в Windows."
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_TEXT "Открыть выбор заставки Windows"
 !define MUI_FINISHPAGE_RUN_FUNCTION OpenSettings
@@ -214,6 +219,58 @@ Function SoundLeave
   ${NSD_GetState} $SoundCheckbox $Sound
 FunctionEnd
 
+; These pages guide the user; silent installation never opens Settings or changes desktop policy.
+!macro GuidePage FUNCTION TITLE BODY TARGET NOTE BUTTON ACTION
+Function ${FUNCTION}
+  !insertmacro MUI_HEADER_TEXT "${TITLE}" "Выполните действие в Windows и вернитесь к мастеру."
+  nsDialogs::Create 1018
+  Pop $0
+  ${NSD_CreateLabel} 0 0 100% 44u "${BODY}"
+  Pop $0
+  ${NSD_CreateLabel} 0 49u 100% 25u "${TARGET}"
+  Pop $0
+  SetCtlColors $0 "005ECC" "EAF3FF"
+  ${NSD_CreateButton} 0 82u 100% 22u "${BUTTON}"
+  Pop $0
+  ${NSD_OnClick} $0 ${FUNCTION}Open
+  ${NSD_CreateLabel} 0 111u 100% 29u "${NOTE}"
+  Pop $0
+  !if "${FUNCTION}" == "SelectGuidePage"
+    GetDlgItem $0 $HWNDPARENT 3
+    EnableWindow $0 0
+  !endif
+  nsDialogs::Show
+FunctionEnd
+Function ${FUNCTION}Open
+  Pop $0
+  Call ${ACTION}
+FunctionEnd
+!macroend
+
+!insertmacro GuidePage SelectGuidePage "Шаг 1 из 4. Выберите Cool Clock" \
+  "Кнопка ниже выберет установленный Cool Clock вместо текущей заставки и откроет окно Windows. Проверьте поле «Заставка / Screen saver». Для звука нажмите «Параметры… / Settings…»." \
+  "  В окне Windows: Заставка / Screen saver → Cool Clock" \
+  "Если окно не открылось: Пуск → Параметры → Персонализация → Экран блокировки → Заставка. Если выбор запрещён организацией, обратитесь к администратору." \
+  "Выбрать Cool Clock в Windows" SelectSaver
+
+!insertmacro GuidePage IntervalGuidePage "Шаг 2 из 4. Задайте интервал" \
+  "В параметрах заставки задайте «Интервал / Wait»: например, 2 минуты. Нажмите «Применить / Apply», затем OK. Флажок запроса входа оставьте в нужном вам состоянии: отключать защиту для работы часов не требуется." \
+  "  Интервал / Wait → 2 минуты (пример)$\r$\n  Сохранение → Применить / Apply → OK" \
+  "Параметры выбираете вы. Кнопка «Далее» в мастере не сохраняет изменения в Windows и не подтверждает их проверку." \
+  "Открыть параметры заставки" OpenSettings
+
+!insertmacro GuidePage PowerGuidePage "Шаг 3 из 4. Проверьте таймер экрана" \
+  "В параметрах питания найдите отключение экрана и переход в спящий режим. Оба таймера должны быть больше интервала заставки. На ноутбуке проверьте отдельно питание от батареи и от сети." \
+  "  Пример: заставка → 2 мин; экран и сон → 10 мин" \
+  "Windows 11: Система → Питание и батарея (или Питание). Windows 10: Система → Питание и спящий режим. Если экран гаснет раньше, заставку не будет видно." \
+  "Открыть параметры питания" OpenPowerSettings
+
+!insertmacro GuidePage CheckGuidePage "Шаг 4 из 4. Проверьте запуск" \
+  "В окне Windows нажмите «Просмотр / Preview»: часы и облака должны двигаться. Движение мыши завершит просмотр. Затем нажмите «Применить», OK и не трогайте компьютер в течение выбранного интервала." \
+  "  Просмотр / Preview → Применить / Apply → OK$\r$\n  Проверка автозапуска → дождаться интервала без действий" \
+  "Просмотр и автозапуск — отдельные проверки. Если заставка не запустилась сама, проверьте выбранный Cool Clock, сохранённый интервал и таймеры экрана и сна." \
+  "Открыть параметры заставки" OpenSettings
+
 Section "Cool Clock"
   Call CheckOwnership
   Call CloseClock
@@ -341,9 +398,31 @@ Function Preview
 FunctionEnd
 
 Function OpenSettings
+  ClearErrors
+  ${DisableX64FSRedirection}
+  Exec '"$SYSDIR\control.exe" desk.cpl,screensaver,@screensaver'
+  ${EnableX64FSRedirection}
+  ${If} ${Errors}
+    MessageBox MB_ICONEXCLAMATION "Откройте Пуск → Параметры → Персонализация → Экран блокировки → Заставка. Выберите Cool Clock, задайте интервал и нажмите «Применить»."
+  ${EndIf}
+FunctionEnd
+
+Function SelectSaver
+  ClearErrors
   ${DisableX64FSRedirection}
   Exec '"$SYSDIR\rundll32.exe" desk.cpl,InstallScreenSaver "$INSTDIR\Cool Clock.scr"'
   ${EnableX64FSRedirection}
+  ${If} ${Errors}
+    MessageBox MB_ICONEXCLAMATION "Не удалось открыть выбор Cool Clock. Проверьте, что файл $INSTDIR\Cool Clock.scr существует, и повторите установку при необходимости."
+  ${EndIf}
+FunctionEnd
+
+Function OpenPowerSettings
+  ClearErrors
+  ExecShell "open" "ms-settings:powersleep"
+  ${If} ${Errors}
+    MessageBox MB_ICONEXCLAMATION "Откройте Пуск → Параметры → Система → Питание. Выберите время отключения экрана и сна больше интервала заставки."
+  ${EndIf}
 FunctionEnd
 
 Function un.onInit

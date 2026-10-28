@@ -71,6 +71,23 @@ function Check-Render([string]$Name, [string]$Mode = '--preview') {
     Assert-True ($data.exitCode -eq 0 -and $data.views -ge 1 -and $data.readyViews -eq $data.views -and $data.errorCount -eq 0) "Render proof failed: $Name"
     $proof.stages += $Name
 }
+function Wait-SetupPage([Diagnostics.Process]$Process, [string]$Title, [string[]]$Required = @(), [int]$Seconds = 30) {
+    $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
+    do {
+        Assert-True (-not $Process.HasExited) "Installer exited before page: $Title"
+        $window = [SmokeWindow]::InstallerWindow($Process.Id)
+        $text = if ($window -ne [IntPtr]::Zero) { [SmokeWindow]::VisibleText($window) } else { '' }
+        $proof.lastInstallerPage = $text
+        $complete = $text.Contains($Title)
+        foreach ($expected in $Required) { $complete = $complete -and $text.Contains($expected) }
+        if ($complete -and [SmokeWindow]::ButtonEnabled($window, 1)) {
+            $proof.installerPages += [ordered]@{ title = $Title; visibleText = $text }
+            return $window
+        }
+        Start-Sleep -Milliseconds 200
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw "Installer page timed out: $Title. Last visible text: $text"
+}
 
 try {
     Assert-True $IsWindows 'This smoke test requires Windows and PowerShell 7'
@@ -144,6 +161,45 @@ public static class SmokeWindow {
     [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr parent, EnumProc callback, IntPtr param);
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint pid);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassNameW(IntPtr window, StringBuilder text, int count);
+    [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc callback, IntPtr param);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll")] static extern bool IsWindowEnabled(IntPtr window);
+    [DllImport("user32.dll")] static extern IntPtr GetDlgItem(IntPtr window, int id);
+    [DllImport("user32.dll")] static extern bool PostMessageW(IntPtr window, uint message, UIntPtr wp, IntPtr lp);
+    [DllImport("user32.dll", EntryPoint="SendMessageTimeoutW", CharSet=CharSet.Unicode)]
+    static extern IntPtr ReadText(IntPtr window, uint message, UIntPtr wp, StringBuilder text, uint flags, uint timeout, out UIntPtr result);
+    static string Text(IntPtr window) {
+        var text = new StringBuilder(4096); UIntPtr result;
+        return ReadText(window, 0xD, (UIntPtr)text.Capacity, text, 2, 200, out result) != IntPtr.Zero ? text.ToString() : "";
+    }
+    public static IntPtr InstallerWindow(uint expectedPid) {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((window, unused) => {
+            uint pid; GetWindowThreadProcessId(window, out pid);
+            if(pid == expectedPid && IsWindowVisible(window) && GetDlgItem(window, 1) != IntPtr.Zero) {
+                var cls = new StringBuilder(128); GetClassNameW(window, cls, 128);
+                if(cls.ToString() == "#32770") { found = window; return false; }
+            }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+    public static string VisibleText(IntPtr parent) {
+        var all = new StringBuilder();
+        EnumChildWindows(parent, (window, unused) => {
+            if(IsWindowVisible(window)) { string text = Text(window); if(text.Length > 0) all.AppendLine(text); }
+            return true;
+        }, IntPtr.Zero);
+        return all.ToString();
+    }
+    public static bool ButtonEnabled(IntPtr parent, int id) {
+        IntPtr button = GetDlgItem(parent, id);
+        return button != IntPtr.Zero && IsWindowVisible(button) && IsWindowEnabled(button);
+    }
+    public static void ClickInstallerButton(IntPtr parent, int id) {
+        if(!ButtonEnabled(parent, id) || !PostMessageW(parent, 0x111, (UIntPtr)id, GetDlgItem(parent, id)))
+            throw new InvalidOperationException("Installer button unavailable: " + id);
+    }
     public static bool HasClockChild(IntPtr parent, uint expectedPid) {
         bool found = false;
         EnumChildWindows(parent, (window, unused) => {
@@ -170,11 +226,34 @@ public static class SmokeWindow {
     } until (($hasChild -and $active.MainWindowHandle -ne 0) -or [DateTime]::UtcNow -gt $deadline)
     Assert-True $hasChild 'No embedded CoolClock child HWND appeared'
     Assert-True ($active.MainWindowHandle -ne 0) 'No active preview window appeared'
-    Wait-Native (Start-Native $setups[0].FullName @('/S')) 240
+    # Exercise the installed UI flow on the disposable runner without selecting a saver or changing its timer.
+    $proof.installerPages = @()
+    $setup = Start-Native $setups[0].FullName
+    $wizard = Wait-SetupPage $setup 'Вас приветствует мастер установки'
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup 'Звук заставки' @('Включить звук и минутные сигналы')
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup 'Шаг 1 из 4. Выберите Cool Clock' @('Выбрать Cool Clock в Windows') 240
+    Assert-True (-not [SmokeWindow]::ButtonEnabled($wizard, 3)) 'The first guide page must not return to the installation section'
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup 'Шаг 2 из 4. Задайте интервал' @('Открыть параметры заставки', 'Применить')
+    [SmokeWindow]::ClickInstallerButton($wizard, 3)
+    $wizard = Wait-SetupPage $setup 'Шаг 1 из 4. Выберите Cool Clock' @('Выбрать Cool Clock в Windows')
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup 'Шаг 2 из 4. Задайте интервал' @('Открыть параметры заставки', 'Применить')
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup 'Шаг 3 из 4. Проверьте таймер экрана' @('Открыть параметры питания')
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup 'Шаг 4 из 4. Проверьте запуск' @('Открыть параметры заставки', 'Просмотр')
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    $wizard = Wait-SetupPage $setup 'Завершение работы мастера установки'
+    [SmokeWindow]::ClickInstallerButton($wizard, 1)
+    Wait-Native $setup 30
     Wait-Native $embedded 10
     Wait-Native $active 10
     Assert-Machine $saver $machine
-    Assert-True ((Desktop-Policy) -eq $beforePolicy) 'Silent update changed desktop policy'
+    Assert-True ((Desktop-Policy) -eq $beforePolicy) 'Interactive update or guide changed desktop policy without a settings action'
+    $proof.stages += 'interactive-guide-four-steps-and-back-navigation'
     $proof.stages += 'update-closes-top-level-and-embedded-previews'
     Check-Render 'updated-render'
 

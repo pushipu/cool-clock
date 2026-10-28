@@ -4,6 +4,8 @@ Experimental Windows port: native x64 and ARM64 `.scr` hosts, a shared
 WebGL/Canvas renderer, and one per-user installer that selects the CPU architecture.
 The cloud videos, rectangle tracks and clock glyphs come from the macOS version.
 
+[Установка и настройка заставки в Windows 10/11](INSTALL.ru.md).
+
 The host uses the Microsoft WebView2 Evergreen Runtime. Windows 11 includes it;
 the installer checks for it and runs the official Microsoft bootstrapper only when
 necessary. That bootstrapper requires an internet connection.
@@ -18,9 +20,13 @@ necessary. That bootstrapper requires an internet connection.
 - `--preview --smoke-report report.json --seconds 15`: bounded native smoke run.
 
 The installer uses `%LOCALAPPDATA%\Cool Clock`. It does not set a lock password
-or inactivity timeout. Its final screen can open the Windows screen saver settings
-and select the installed `.scr`. Removal deletes installed files, not the shared
-Microsoft Runtime.
+or inactivity timeout. After copying files, four guide pages explain selecting
+Cool Clock, saving the wait interval, checking screen/sleep timers, and testing
+preview followed by actual idle startup. The highlighted rows are instructions,
+not Windows controls. Only the explicitly labelled **«Выбрать Cool Clock в Windows»**
+button changes the selected saver; the other Settings buttons only open their
+dialogs. Next does not verify or save Windows settings. Removal deletes installed
+files, not the shared Microsoft Runtime.
 
 The embedded control-panel preview uses a separate WebView2 data folder so it
 can run alongside the full-screen saver or a standalone preview without a
@@ -40,7 +46,7 @@ python3 scripts/build-windows.py
 npm test
 ```
 
-Output: `dist/Cool-Clock-0.9.0-Windows-Setup.exe`. The single installer contains
+Output: `dist/Cool-Clock-0.9.1-Windows-Setup.exe`. The single installer contains
 both architectures and one copy of the cloud/audio assets. SHA-256 is stored in
 `dist/Windows-SHA256SUMS`.
 
