@@ -24,6 +24,8 @@ fi
 python3 - "$root" <<'PY'
 import json, pathlib, plistlib, re, shutil, sys
 root = pathlib.Path(sys.argv[1])
+version = (root / 'VERSION').read_text().strip()
+assert re.fullmatch(r'[0-9]+(?:\.[0-9]+){2}', version), 'Expected a three-part release version'
 source = (root / 'clock-glyphs.js').read_text()
 glyphs = dict(re.findall(r"'([0-9])':\s*'([^']+)'", source))
 assert len(glyphs) == 10, 'Expected all ten source glyphs'
@@ -34,7 +36,7 @@ for name, executable, identifier, kind in [
     contents = root / 'build' / name / 'Contents'
     info = {'CFBundleExecutable': executable, 'CFBundleIdentifier': identifier,
             'CFBundleName': name.rsplit('.', 1)[0], 'CFBundlePackageType': kind,
-            'CFBundleVersion': '17', 'CFBundleShortVersionString': '0.8.3',
+            'CFBundleVersion': '17', 'CFBundleShortVersionString': version,
             'CFBundleDevelopmentRegion': 'en', 'CFBundleLocalizations': ['en', 'ru'],
             'LSMinimumSystemVersion': '12.0', 'NSHighResolutionCapable': True,
             'CFBundleIconFile': 'ClockIcon.icns'}

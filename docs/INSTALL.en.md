@@ -2,7 +2,7 @@
 
 # Install Cool Clock for macOS
 
-[Download installer 0.8.3](https://github.com/pushipu/cool-clock/releases/download/v0.8.3/Cool-Clock-0.8.3-macOS.dmg)
+[Download installer 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/Cool-Clock-0.9.2-macOS.dmg)
 
 Requires macOS 12 or later. One installer supports Apple Silicon and Intel.
 This is a preview release; macOS may warn about an unidentified developer
@@ -74,7 +74,7 @@ To update, run the new installer. You can eject the DMG after installation.
 The screensaver is stored at `~/Library/Screen Savers/Cool Clock.saver`,
 and the preview app at `~/Applications/Cool Clock Preview.app`.
 
-To verify the download, save [SHA256SUMS](https://github.com/pushipu/cool-clock/releases/download/v0.8.3/SHA256SUMS)
+To verify the download, save [SHA256SUMS](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/SHA256SUMS)
 beside the DMG and run this command in that folder:
 
 ```sh

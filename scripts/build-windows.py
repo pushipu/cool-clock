@@ -6,12 +6,16 @@ import json
 import os
 import pathlib
 import platform
+import re
 import shutil
 import struct
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERSION = "0.9.2"
+VERSION = (ROOT / "VERSION").read_text().strip()
+if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", VERSION) or any(int(part) > 65535 for part in VERSION.split(".")):
+    raise ValueError("VERSION must contain three numeric components between 0 and 65535")
+WINDOWS_VERSION = VERSION.replace(".", ",") + ",0"
 
 
 def run(*command, **kwargs):
@@ -109,8 +113,8 @@ def main():
     resource.write_text(f'''#include <windows.h>
 1 ICON "{(ROOT / 'assets/ClockIcon.ico').as_posix()}"
 1 VERSIONINFO
- FILEVERSION 0,9,2,0
- PRODUCTVERSION 0,9,2,0
+ FILEVERSION {WINDOWS_VERSION}
+ PRODUCTVERSION {WINDOWS_VERSION}
  FILEOS VOS_NT_WINDOWS32
  FILETYPE VFT_APP
 BEGIN

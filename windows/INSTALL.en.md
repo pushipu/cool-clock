@@ -2,7 +2,7 @@
 
 # Install Cool Clock for Windows
 
-[Download installer 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2-windows-preview.1/Cool-Clock-0.9.2-Windows-Setup.exe)
+[Download installer 0.9.2](https://github.com/pushipu/cool-clock/releases/download/v0.9.2/Cool-Clock-0.9.2-Windows-Setup.exe)
 
 Requires Windows 10 or 11. One installer supports Intel/AMD x64 and ARM64.
 This is a preview release; the installer is not yet digitally signed.
