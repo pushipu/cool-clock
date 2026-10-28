@@ -96,7 +96,7 @@ function Check-SaverSelection([IntPtr]$Wizard, [string]$ButtonText, [int]$SetupI
                 }
             }
             if ($settings) { $settingsWindow = [SmokeWindow]::ComboWindow($settings.Id) }
-            if ($settingsWindow -ne [IntPtr]::Zero) { break }
+            if ($settingsWindow -ne [IntPtr]::Zero -and -not [string]::IsNullOrEmpty([SmokeWindow]::ComboSelection($settingsWindow))) { break }
             Start-Sleep -Milliseconds 200
         } while ([DateTime]::UtcNow -lt $deadline)
         Assert-True ($settingsWindow -ne [IntPtr]::Zero) 'Select saver did not open its own Screen Saver Settings window'
@@ -114,7 +114,7 @@ function Check-SaverSelection([IntPtr]$Wizard, [string]$ButtonText, [int]$SetupI
         do {
             Assert-True (-not $settings.HasExited) 'Reopened Screen Saver Settings exited before showing its combo'
             $settingsWindow = [SmokeWindow]::ComboWindow($settings.Id)
-            if ($settingsWindow -ne [IntPtr]::Zero) { break }
+            if ($settingsWindow -ne [IntPtr]::Zero -and -not [string]::IsNullOrEmpty([SmokeWindow]::ComboSelection($settingsWindow))) { break }
             Start-Sleep -Milliseconds 200
         } while ([DateTime]::UtcNow -lt $deadline)
         Assert-True ($settingsWindow -ne [IntPtr]::Zero) 'Ordinary Screen Saver Settings did not open after installer exit'
